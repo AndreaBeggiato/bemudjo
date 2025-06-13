@@ -1,0 +1,7 @@
+[package]
+name = "bemudjo_ecs"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+
+[dependencies]
