@@ -1,3 +1,6 @@
+pub mod entity;
+
+pub use entity::Entity;
 #[cfg(test)]
 mod tests {
     #[test]

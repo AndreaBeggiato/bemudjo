@@ -10,7 +10,7 @@ async fn main() -> io::Result<()> {
     loop {
         let (socket, addr) = listener.accept().await?;
         println!("New connection from: {}", addr);
-        
+
         tokio::spawn(async move {
             if let Err(e) = handle_client(socket).await {
                 eprintln!("Error handling client {}: {}", addr, e);
@@ -25,17 +25,19 @@ async fn handle_client(mut socket: TcpStream) -> io::Result<()> {
     let mut line = String::new();
 
     writer.write_all(b"Welcome to Bemudjo MUD!\r\n").await?;
-    writer.write_all(b"Type 'help' for available commands or 'quit' to exit.\r\n").await?;
+    writer
+        .write_all(b"Type 'help' for available commands or 'quit' to exit.\r\n")
+        .await?;
     writer.write_all(b"> ").await?;
 
     loop {
         line.clear();
-        
+
         match reader.read_line(&mut line).await {
             Ok(0) => break,
             Ok(_) => {
                 let command = line.trim();
-                
+
                 match command {
                     "quit" | "exit" => {
                         writer.write_all(b"Goodbye!\r\n").await?;
@@ -43,9 +45,13 @@ async fn handle_client(mut socket: TcpStream) -> io::Result<()> {
                     }
                     "help" => {
                         writer.write_all(b"Available commands:\r\n").await?;
-                        writer.write_all(b"  help - Show this help message\r\n").await?;
+                        writer
+                            .write_all(b"  help - Show this help message\r\n")
+                            .await?;
                         writer.write_all(b"  look - Look around\r\n").await?;
-                        writer.write_all(b"  say <message> - Say something\r\n").await?;
+                        writer
+                            .write_all(b"  say <message> - Say something\r\n")
+                            .await?;
                         writer.write_all(b"  quit - Exit the game\r\n").await?;
                     }
                     "look" => {
@@ -53,15 +59,18 @@ async fn handle_client(mut socket: TcpStream) -> io::Result<()> {
                     }
                     cmd if cmd.starts_with("say ") => {
                         let message = &cmd[4..];
-                        writer.write_all(format!("You say: {}\r\n", message).as_bytes()).await?;
+                        writer
+                            .write_all(format!("You say: {}\r\n", message).as_bytes())
+                            .await?;
                     }
-                    "" => {
-                    }
+                    "" => {}
                     _ => {
-                        writer.write_all(b"Unknown command. Type 'help' for available commands.\r\n").await?;
+                        writer
+                            .write_all(b"Unknown command. Type 'help' for available commands.\r\n")
+                            .await?;
                     }
                 }
-                
+
                 if !line.trim().is_empty() {
                     writer.write_all(b"> ").await?;
                 }
