@@ -38,7 +38,7 @@ impl Entity {
     #[allow(clippy::new_without_default)]
     pub fn new() -> Entity {
         Entity {
-            id: CURRENT_ID.fetch_add(1, Ordering::SeqCst),
+            id: CURRENT_ID.fetch_add(1, Ordering::Relaxed),
         }
     }
 }
