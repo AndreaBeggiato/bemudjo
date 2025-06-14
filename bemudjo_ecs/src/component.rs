@@ -259,11 +259,13 @@ impl<T: Component> Default for HashMapComponentStorage<T> {
 
 impl<T: Component> ComponentStorage<T> for HashMapComponentStorage<T> {
     fn insert(&mut self, entity: &Entity, component: T) -> Result<(), ComponentError> {
-        if self.hash_map.contains_key(entity) {
-            return Err(ComponentError::ComponentAlreadyExists);
+        match self.hash_map.entry(*entity) {
+            std::collections::hash_map::Entry::Vacant(e) => {
+                e.insert(component);
+                Ok(())
+            }
+            std::collections::hash_map::Entry::Occupied(_) => Err(ComponentError::ComponentAlreadyExists),
         }
-        self.hash_map.insert(*entity, component);
-        Ok(())
     }
 
     fn insert_or_update(&mut self, entity: &Entity, component: T) {
