@@ -15,7 +15,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 ///
 /// assert_ne!(player, monster);
 /// ```
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct Entity {
     id: u64,
 }
