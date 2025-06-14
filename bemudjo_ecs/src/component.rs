@@ -264,7 +264,9 @@ impl<T: Component> ComponentStorage<T> for HashMapComponentStorage<T> {
                 e.insert(component);
                 Ok(())
             }
-            std::collections::hash_map::Entry::Occupied(_) => Err(ComponentError::ComponentAlreadyExists),
+            std::collections::hash_map::Entry::Occupied(_) => {
+                Err(ComponentError::ComponentAlreadyExists)
+            }
         }
     }
 
