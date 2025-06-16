@@ -3,15 +3,17 @@ use std::sync::atomic::{AtomicU64, Ordering};
 /// A unique identifier for entities in the ECS system.
 ///
 /// Entities represent game objects like players, monsters, items, or rooms.
-/// Each entity is guaranteed to be unique.
+/// Each entity is guaranteed to be unique and should only be created through
+/// the [`World::spawn_entity()`](crate::World::spawn_entity) method.
 ///
 /// # Examples
 ///
 /// ```
-/// use bemudjo_ecs::Entity;
+/// use bemudjo_ecs::World;
 ///
-/// let player = Entity::new();
-/// let monster = Entity::new();
+/// let mut world = World::new();
+/// let player = world.spawn_entity();
+/// let monster = world.spawn_entity();
 ///
 /// assert_ne!(player, monster);
 /// ```
@@ -25,18 +27,12 @@ static CURRENT_ID: AtomicU64 = AtomicU64::new(0);
 impl Entity {
     /// Creates a new unique entity.
     ///
-    /// # Examples
+    /// This method is internal to the crate and should only be called by [`World::spawn_entity()`].
+    /// Users should create entities through the World interface to ensure proper tracking.
     ///
-    /// ```
-    /// use bemudjo_ecs::Entity;
-    ///
-    /// let entity1 = Entity::new();
-    /// let entity2 = Entity::new();
-    ///
-    /// assert_ne!(entity1, entity2);
-    /// ```
+    /// [`World::spawn_entity()`]: crate::World::spawn_entity
     #[allow(clippy::new_without_default)]
-    pub fn new() -> Entity {
+    pub(crate) fn new() -> Entity {
         Entity {
             id: CURRENT_ID.fetch_add(1, Ordering::Relaxed),
         }
