@@ -32,9 +32,9 @@ mod storage;
 /// assert!(!world.has_component::<Position>(entity));
 /// ```
 pub struct World {
-    pub(self) entities: HashSet<Entity>,
-    pub(self) soft_deleted_entities: HashSet<Entity>,
-    pub(self) component_storages: HashMap<TypeId, Box<dyn AnyStorage>>,
+    entities: HashSet<Entity>,
+    soft_deleted_entities: HashSet<Entity>,
+    component_storages: HashMap<TypeId, Box<dyn AnyStorage>>,
 }
 
 impl World {
