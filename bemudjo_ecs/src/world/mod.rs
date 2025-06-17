@@ -110,9 +110,13 @@ mod tests {
         let entity2 = world.spawn_entity();
 
         // Add different component combinations
-        world.add_component(entity1, Position { x: 1.0, y: 2.0 }).unwrap();
+        world
+            .add_component(entity1, Position { x: 1.0, y: 2.0 })
+            .unwrap();
         world.add_component(entity1, Health { value: 100 }).unwrap();
-        world.add_component(entity2, Position { x: 3.0, y: 4.0 }).unwrap();
+        world
+            .add_component(entity2, Position { x: 3.0, y: 4.0 })
+            .unwrap();
 
         // Verify state
         assert_eq!(world.entities().count(), 2);
@@ -122,10 +126,12 @@ mod tests {
         assert!(!world.has_component::<Health>(entity2));
 
         // Update and replace operations
-        world.update_component::<Health, _>(entity1, |mut h| {
-            h.value -= 25;
-            h
-        }).unwrap();
+        world
+            .update_component::<Health, _>(entity1, |mut h| {
+                h.value -= 25;
+                h
+            })
+            .unwrap();
 
         let old_pos = world.replace_component(entity2, Position { x: 5.0, y: 6.0 });
         assert_eq!(old_pos, Some(Position { x: 3.0, y: 4.0 }));

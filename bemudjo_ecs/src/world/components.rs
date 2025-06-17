@@ -331,7 +331,10 @@ mod tests {
 
         // Add same component type again - should fail
         let result = world.add_component(entity, Position { x: 2.0, y: 2.0 });
-        assert!(matches!(result, Err(ComponentError::ComponentAlreadyExists)));
+        assert!(matches!(
+            result,
+            Err(ComponentError::ComponentAlreadyExists)
+        ));
     }
 
     #[test]
@@ -392,7 +395,9 @@ mod tests {
         let mut world = World::new();
         let entity = world.spawn_entity();
 
-        world.add_component(entity, Position { x: 1.0, y: 1.0 }).unwrap();
+        world
+            .add_component(entity, Position { x: 1.0, y: 1.0 })
+            .unwrap();
         world.delete_entity(entity);
 
         let result = world.get_component::<Position>(entity);
@@ -489,7 +494,9 @@ mod tests {
         let mut world = World::new();
         let entity = world.spawn_entity();
 
-        world.add_component(entity, Position { x: 1.0, y: 1.0 }).unwrap();
+        world
+            .add_component(entity, Position { x: 1.0, y: 1.0 })
+            .unwrap();
         world.delete_entity(entity);
 
         let result = world.replace_component(entity, Position { x: 2.0, y: 2.0 });
@@ -503,7 +510,9 @@ mod tests {
 
         assert!(!world.has_component::<Position>(entity));
 
-        world.add_component(entity, Position { x: 1.0, y: 1.0 }).unwrap();
+        world
+            .add_component(entity, Position { x: 1.0, y: 1.0 })
+            .unwrap();
         assert!(world.has_component::<Position>(entity));
     }
 
@@ -512,7 +521,9 @@ mod tests {
         let mut world = World::new();
         let entity = world.spawn_entity();
 
-        world.add_component(entity, Position { x: 1.0, y: 1.0 }).unwrap();
+        world
+            .add_component(entity, Position { x: 1.0, y: 1.0 })
+            .unwrap();
         world.add_component(entity, Health { value: 100 }).unwrap();
 
         assert!(world.has_component::<Position>(entity));
@@ -534,7 +545,9 @@ mod tests {
         let mut world = World::new();
         let entity = world.spawn_entity();
 
-        world.add_component(entity, Position { x: 1.0, y: 1.0 }).unwrap();
+        world
+            .add_component(entity, Position { x: 1.0, y: 1.0 })
+            .unwrap();
         assert!(world.has_component::<Position>(entity));
 
         world.delete_entity(entity);
@@ -580,7 +593,9 @@ mod tests {
         let mut world = World::new();
         let entity = world.spawn_entity();
 
-        world.add_component(entity, Position { x: 1.0, y: 1.0 }).unwrap();
+        world
+            .add_component(entity, Position { x: 1.0, y: 1.0 })
+            .unwrap();
         world.delete_entity(entity);
 
         let result = world.remove_component::<Position>(entity);
@@ -597,7 +612,9 @@ mod tests {
         assert!(!world.has_component::<Health>(entity));
 
         // Add position
-        world.add_component(entity, Position { x: 1.0, y: 2.0 }).unwrap();
+        world
+            .add_component(entity, Position { x: 1.0, y: 2.0 })
+            .unwrap();
         assert!(world.has_component::<Position>(entity));
         assert!(!world.has_component::<Health>(entity));
 
@@ -607,10 +624,12 @@ mod tests {
         assert!(world.has_component::<Health>(entity));
 
         // Update health
-        world.update_component::<Health, _>(entity, |mut h| {
-            h.value -= 50;
-            h
-        }).unwrap();
+        world
+            .update_component::<Health, _>(entity, |mut h| {
+                h.value -= 50;
+                h
+            })
+            .unwrap();
         assert_eq!(world.get_component::<Health>(entity).unwrap().value, 50);
 
         // Replace position
@@ -638,9 +657,15 @@ mod tests {
         let entity3 = world.spawn_entity();
 
         // Add same component type to multiple entities
-        world.add_component(entity1, Position { x: 1.0, y: 1.0 }).unwrap();
-        world.add_component(entity2, Position { x: 2.0, y: 2.0 }).unwrap();
-        world.add_component(entity3, Position { x: 3.0, y: 3.0 }).unwrap();
+        world
+            .add_component(entity1, Position { x: 1.0, y: 1.0 })
+            .unwrap();
+        world
+            .add_component(entity2, Position { x: 2.0, y: 2.0 })
+            .unwrap();
+        world
+            .add_component(entity3, Position { x: 3.0, y: 3.0 })
+            .unwrap();
 
         // Verify each entity has its own component data
         assert_eq!(world.get_component::<Position>(entity1).unwrap().x, 1.0);
@@ -660,7 +685,9 @@ mod tests {
         let entity = world.spawn_entity();
 
         // Add component, delete entity, cleanup
-        world.add_component(entity, Position { x: 1.0, y: 1.0 }).unwrap();
+        world
+            .add_component(entity, Position { x: 1.0, y: 1.0 })
+            .unwrap();
         world.delete_entity(entity);
         world.cleanup_deleted_entities();
 
@@ -668,7 +695,10 @@ mod tests {
         assert!(!world.has_component::<Position>(entity));
         assert_eq!(world.get_component::<Position>(entity), None);
         assert_eq!(world.remove_component::<Position>(entity), None);
-        assert_eq!(world.replace_component(entity, Position { x: 2.0, y: 2.0 }), None);
+        assert_eq!(
+            world.replace_component(entity, Position { x: 2.0, y: 2.0 }),
+            None
+        );
 
         let result = world.add_component(entity, Position { x: 3.0, y: 3.0 });
         assert!(matches!(result, Err(ComponentError::ComponentNotFound)));

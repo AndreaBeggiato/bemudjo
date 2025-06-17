@@ -282,7 +282,9 @@ mod tests {
         let entity = world.spawn_entity();
 
         // Add component to entity
-        world.add_component(entity, Position { x: 1.0, y: 2.0 }).unwrap();
+        world
+            .add_component(entity, Position { x: 1.0, y: 2.0 })
+            .unwrap();
         assert!(world.has_component::<Position>(entity));
 
         // Delete entity
@@ -322,8 +324,12 @@ mod tests {
         let entity2 = world.spawn_entity();
 
         // Add components
-        world.add_component(entity1, Position { x: 1.0, y: 1.0 }).unwrap();
-        world.add_component(entity2, Position { x: 2.0, y: 2.0 }).unwrap();
+        world
+            .add_component(entity1, Position { x: 1.0, y: 1.0 })
+            .unwrap();
+        world
+            .add_component(entity2, Position { x: 2.0, y: 2.0 })
+            .unwrap();
 
         // Delete one entity
         world.delete_entity(entity1);
@@ -345,7 +351,9 @@ mod tests {
         let mut world = World::new();
         let entity = world.spawn_entity();
 
-        world.add_component(entity, Position { x: 1.0, y: 1.0 }).unwrap();
+        world
+            .add_component(entity, Position { x: 1.0, y: 1.0 })
+            .unwrap();
         world.delete_entity(entity);
 
         // Multiple cleanup calls should be safe
@@ -371,9 +379,15 @@ mod tests {
         assert_eq!(world.entities().count(), 3);
 
         // Add components
-        world.add_component(entity1, Position { x: 1.0, y: 1.0 }).unwrap();
-        world.add_component(entity2, Position { x: 2.0, y: 2.0 }).unwrap();
-        world.add_component(entity3, Position { x: 3.0, y: 3.0 }).unwrap();
+        world
+            .add_component(entity1, Position { x: 1.0, y: 1.0 })
+            .unwrap();
+        world
+            .add_component(entity2, Position { x: 2.0, y: 2.0 })
+            .unwrap();
+        world
+            .add_component(entity3, Position { x: 3.0, y: 3.0 })
+            .unwrap();
 
         // Delete middle entity
         world.delete_entity(entity2);
@@ -409,7 +423,9 @@ mod tests {
         let entity1 = world.spawn_entity();
 
         // Add component and delete
-        world.add_component(entity1, Position { x: 1.0, y: 1.0 }).unwrap();
+        world
+            .add_component(entity1, Position { x: 1.0, y: 1.0 })
+            .unwrap();
         world.delete_entity(entity1);
         world.cleanup_deleted_entities();
 
@@ -421,7 +437,9 @@ mod tests {
         assert!(world.is_entity_active(entity2));
 
         // Should be able to add components to new entity
-        world.add_component(entity2, Position { x: 2.0, y: 2.0 }).unwrap();
+        world
+            .add_component(entity2, Position { x: 2.0, y: 2.0 })
+            .unwrap();
         assert!(world.has_component::<Position>(entity2));
     }
 
@@ -434,10 +452,15 @@ mod tests {
         for i in 0..1000 {
             let entity = world.spawn_entity();
             entities.push(entity);
-            world.add_component(entity, Position {
-                x: i as f32,
-                y: (i * 2) as f32
-            }).unwrap();
+            world
+                .add_component(
+                    entity,
+                    Position {
+                        x: i as f32,
+                        y: (i * 2) as f32,
+                    },
+                )
+                .unwrap();
         }
 
         assert_eq!(world.entities().count(), 1000);

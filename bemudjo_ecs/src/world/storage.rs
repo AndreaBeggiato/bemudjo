@@ -42,7 +42,7 @@ impl World {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{Component, ComponentStorage, AnyStorage};
+    use crate::{AnyStorage, Component, ComponentStorage};
 
     #[derive(Debug, Clone, PartialEq)]
     struct Position {
@@ -95,7 +95,9 @@ mod tests {
         assert!(world.get_storage::<Position>().is_none());
 
         // Add component - this should create storage via get_storage_mut
-        world.add_component(entity, Position { x: 1.0, y: 2.0 }).unwrap();
+        world
+            .add_component(entity, Position { x: 1.0, y: 2.0 })
+            .unwrap();
 
         // Now storage should exist
         let storage = world.get_storage::<Position>();
@@ -109,9 +111,13 @@ mod tests {
         let entity = world.spawn_entity();
 
         // Add different component types
-        world.add_component(entity, Position { x: 1.0, y: 2.0 }).unwrap();
+        world
+            .add_component(entity, Position { x: 1.0, y: 2.0 })
+            .unwrap();
         world.add_component(entity, Health { value: 100 }).unwrap();
-        world.add_component(entity, Velocity { dx: 0.5, dy: -0.3 }).unwrap();
+        world
+            .add_component(entity, Velocity { dx: 0.5, dy: -0.3 })
+            .unwrap();
 
         // Each component type should have its own storage
         let pos_storage = world.get_storage::<Position>();
@@ -156,8 +162,12 @@ mod tests {
         let entity2 = world.spawn_entity();
 
         // Add components to entities
-        world.add_component(entity1, Position { x: 1.0, y: 1.0 }).unwrap();
-        world.add_component(entity2, Position { x: 2.0, y: 2.0 }).unwrap();
+        world
+            .add_component(entity1, Position { x: 1.0, y: 1.0 })
+            .unwrap();
+        world
+            .add_component(entity2, Position { x: 2.0, y: 2.0 })
+            .unwrap();
 
         let storage = world.get_storage::<Position>();
         assert!(storage.is_some());
@@ -196,7 +206,9 @@ mod tests {
         let entity = world.spawn_entity();
 
         // Add position component
-        world.add_component(entity, Position { x: 5.0, y: 10.0 }).unwrap();
+        world
+            .add_component(entity, Position { x: 5.0, y: 10.0 })
+            .unwrap();
 
         // Position storage should exist, Health storage should not
         assert!(world.get_storage::<Position>().is_some());
@@ -230,7 +242,9 @@ mod tests {
         let entity = world.spawn_entity();
 
         // Add component through normal API
-        world.add_component(entity, Position { x: 1.0, y: 2.0 }).unwrap();
+        world
+            .add_component(entity, Position { x: 1.0, y: 2.0 })
+            .unwrap();
 
         // Get mutable storage and modify directly
         {
@@ -252,7 +266,9 @@ mod tests {
         let entity = world.spawn_entity();
 
         // Add components of different types
-        world.add_component(entity, Position { x: 1.0, y: 2.0 }).unwrap();
+        world
+            .add_component(entity, Position { x: 1.0, y: 2.0 })
+            .unwrap();
         world.add_component(entity, Health { value: 100 }).unwrap();
 
         // Each storage should only contain its specific type
@@ -262,7 +278,10 @@ mod tests {
         // Verify type names are different
         assert!(pos_storage.component_type_name().contains("Position"));
         assert!(health_storage.component_type_name().contains("Health"));
-        assert_ne!(pos_storage.component_type_name(), health_storage.component_type_name());
+        assert_ne!(
+            pos_storage.component_type_name(),
+            health_storage.component_type_name()
+        );
 
         // Verify data integrity
         assert_eq!(pos_storage.get(entity).unwrap().x, 1.0);
@@ -276,13 +295,17 @@ mod tests {
         let entity2 = world.spawn_entity();
 
         // Add component to first entity
-        world.add_component(entity1, Position { x: 1.0, y: 1.0 }).unwrap();
+        world
+            .add_component(entity1, Position { x: 1.0, y: 1.0 })
+            .unwrap();
 
         // Storage should exist
         assert!(world.get_storage::<Position>().is_some());
 
         // Add component to second entity
-        world.add_component(entity2, Position { x: 2.0, y: 2.0 }).unwrap();
+        world
+            .add_component(entity2, Position { x: 2.0, y: 2.0 })
+            .unwrap();
 
         // Same storage should be used
         let storage = world.get_storage::<Position>().unwrap();
@@ -315,8 +338,12 @@ mod tests {
         let entity2 = world2.spawn_entity();
 
         // Add same component type to both worlds
-        world1.add_component(entity1, Position { x: 1.0, y: 1.0 }).unwrap();
-        world2.add_component(entity2, Position { x: 2.0, y: 2.0 }).unwrap();
+        world1
+            .add_component(entity1, Position { x: 1.0, y: 1.0 })
+            .unwrap();
+        world2
+            .add_component(entity2, Position { x: 2.0, y: 2.0 })
+            .unwrap();
 
         // Each world should have its own storage
         let storage1 = world1.get_storage::<Position>().unwrap();
@@ -341,7 +368,9 @@ mod tests {
 
         // Create entity and add component
         let entity = world.spawn_entity();
-        world.add_component(entity, Position { x: 5.0, y: 5.0 }).unwrap();
+        world
+            .add_component(entity, Position { x: 5.0, y: 5.0 })
+            .unwrap();
 
         // Storage should exist
         let storage = world.get_storage::<Position>();
@@ -349,10 +378,12 @@ mod tests {
         assert!(storage.unwrap().contains(entity));
 
         // Update component
-        world.update_component::<Position, _>(entity, |mut pos| {
-            pos.x += 1.0;
-            pos
-        }).unwrap();
+        world
+            .update_component::<Position, _>(entity, |mut pos| {
+                pos.x += 1.0;
+                pos
+            })
+            .unwrap();
 
         // Storage should still exist with updated data
         let storage = world.get_storage::<Position>();
