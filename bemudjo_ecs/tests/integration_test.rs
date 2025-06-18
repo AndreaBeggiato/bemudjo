@@ -3,7 +3,7 @@
 //! These tests validate the public API and realistic usage patterns
 //! by testing the library as an external user would.
 
-use bemudjo_ecs::{Component, ComponentError, System, SystemScheduler, World};
+use bemudjo_ecs::{Component, ComponentError, SequentialSystemScheduler, System, World};
 
 // Test Components
 #[derive(Clone, Debug, PartialEq)]
@@ -238,7 +238,7 @@ fn test_component_lifecycle() {
 #[test]
 fn test_system_scheduler_basic() {
     let mut world = World::new();
-    let mut scheduler = SystemScheduler::new();
+    let mut scheduler = SequentialSystemScheduler::new();
 
     // Test empty scheduler
     assert_eq!(scheduler.system_count(), 0);
@@ -309,7 +309,7 @@ fn test_system_scheduler_basic() {
 #[test]
 fn test_system_execution_phases() {
     let mut world = World::new();
-    let mut scheduler = SystemScheduler::new();
+    let mut scheduler = SequentialSystemScheduler::new();
 
     let logging_system = LoggingSystem::new();
     scheduler.add_system(logging_system);
@@ -335,7 +335,7 @@ fn test_system_execution_phases() {
 #[test]
 fn test_system_execution_order() {
     let mut world = World::new();
-    let mut scheduler = SystemScheduler::new();
+    let mut scheduler = SequentialSystemScheduler::new();
 
     // Create a system that tracks execution order using a component
     struct OrderTrackingSystem {
@@ -405,7 +405,7 @@ fn test_system_execution_order() {
 #[test]
 fn test_complex_ecs_scenario() {
     let mut world = World::new();
-    let mut scheduler = SystemScheduler::new();
+    let mut scheduler = SequentialSystemScheduler::new();
 
     // Add systems
     scheduler.add_system(MovementSystem);
@@ -595,7 +595,7 @@ fn test_error_handling() {
 #[test]
 fn test_performance_scenario() {
     let mut world = World::new();
-    let mut scheduler = SystemScheduler::new();
+    let mut scheduler = SequentialSystemScheduler::new();
 
     scheduler.add_system(MovementSystem);
 
@@ -753,7 +753,7 @@ fn test_empty_system_trait_methods() {
     }
 
     let mut world = World::new();
-    let mut scheduler = SystemScheduler::new();
+    let mut scheduler = SequentialSystemScheduler::new();
 
     scheduler.add_system(EmptySystem);
     assert_eq!(scheduler.system_count(), 1);
@@ -768,7 +768,7 @@ fn test_empty_system_trait_methods() {
 #[test]
 fn test_realistic_game_loop_simulation() {
     let mut world = World::new();
-    let mut scheduler = SystemScheduler::new();
+    let mut scheduler = SequentialSystemScheduler::new();
 
     // Add core game systems
     scheduler.add_system(MovementSystem);

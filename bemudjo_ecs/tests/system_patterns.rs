@@ -3,7 +3,7 @@
 //! Tests focus on different system implementation patterns and
 //! advanced usage scenarios of the System trait.
 
-use bemudjo_ecs::{Component, System, SystemScheduler, World};
+use bemudjo_ecs::{Component, SequentialSystemScheduler, System, World};
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -175,7 +175,7 @@ impl System for TimerSystem {
 #[test]
 fn test_system_phases_execution_order() {
     let mut world = World::new();
-    let mut scheduler = SystemScheduler::new();
+    let mut scheduler = SequentialSystemScheduler::new();
 
     let stateful_system = StatefulSystem::new();
     let state_handle = stateful_system.shared_state.clone();
@@ -204,7 +204,7 @@ fn test_system_phases_execution_order() {
 #[test]
 fn test_read_only_system_pattern() {
     let mut world = World::new();
-    let mut scheduler = SystemScheduler::new();
+    let mut scheduler = SequentialSystemScheduler::new();
 
     let read_only_system = ReadOnlySystem::new();
     let observations_handle = read_only_system.observations.clone();
@@ -241,7 +241,7 @@ fn test_read_only_system_pattern() {
 #[test]
 fn test_post_process_system_pattern() {
     let mut world = World::new();
-    let mut scheduler = SystemScheduler::new();
+    let mut scheduler = SequentialSystemScheduler::new();
 
     let post_process_system = PostProcessSystem::new();
     let results_handle = post_process_system.results.clone();
@@ -300,7 +300,7 @@ fn test_post_process_system_pattern() {
 #[test]
 fn test_complex_system_interactions() {
     let mut world = World::new();
-    let mut scheduler = SystemScheduler::new();
+    let mut scheduler = SequentialSystemScheduler::new();
 
     // Add multiple systems that interact
     scheduler.add_system(QuerySystem);
@@ -380,7 +380,7 @@ fn test_complex_system_interactions() {
 #[test]
 fn test_system_with_no_entities() {
     let mut world = World::new();
-    let mut scheduler = SystemScheduler::new();
+    let mut scheduler = SequentialSystemScheduler::new();
 
     let stateful_system = StatefulSystem::new();
     let read_only_system = ReadOnlySystem::new();
@@ -421,7 +421,7 @@ fn test_system_with_no_entities() {
 fn test_system_error_resilience() {
     // Test that systems handle missing components gracefully
     let mut world = World::new();
-    let mut scheduler = SystemScheduler::new();
+    let mut scheduler = SequentialSystemScheduler::new();
 
     scheduler.add_system(QuerySystem);
     scheduler.add_system(TimerSystem);
@@ -462,7 +462,7 @@ fn test_system_error_resilience() {
 #[test]
 fn test_multiple_systems_same_type() {
     let mut world = World::new();
-    let mut scheduler = SystemScheduler::new();
+    let mut scheduler = SequentialSystemScheduler::new();
 
     // Add multiple instances of the same system type
     scheduler.add_system(QuerySystem);
@@ -492,7 +492,7 @@ fn test_multiple_systems_same_type() {
 #[test]
 fn test_system_execution_with_entity_deletion() {
     let mut world = World::new();
-    let mut scheduler = SystemScheduler::new();
+    let mut scheduler = SequentialSystemScheduler::new();
 
     // System that deletes entities based on a condition
     struct DeletionSystem;
@@ -566,7 +566,7 @@ fn test_system_execution_with_entity_deletion() {
 #[test]
 fn test_empty_scheduler() {
     let mut world = World::new();
-    let scheduler = SystemScheduler::new();
+    let scheduler = SequentialSystemScheduler::new();
 
     assert_eq!(scheduler.system_count(), 0);
 
@@ -589,7 +589,7 @@ fn test_system_with_default_implementations() {
     }
 
     let mut world = World::new();
-    let mut scheduler = SystemScheduler::new();
+    let mut scheduler = SequentialSystemScheduler::new();
 
     scheduler.add_system(MinimalSystem);
 

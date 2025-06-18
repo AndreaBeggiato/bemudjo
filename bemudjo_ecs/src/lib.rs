@@ -8,5 +8,5 @@ pub use component::{
     AnyStorage, Component, ComponentError, ComponentStorage, HashMapComponentStorage,
 };
 pub use entity::Entity;
-pub use system::{System, SystemScheduler};
+pub use system::{SequentialSystemScheduler, System};
 pub use world::World;

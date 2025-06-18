@@ -3,7 +3,7 @@
 //! Tests focus on boundary conditions, edge cases, and stress testing
 //! the ECS library's robustness and error handling.
 
-use bemudjo_ecs::{Component, ComponentError, System, SystemScheduler, World};
+use bemudjo_ecs::{Component, ComponentError, SequentialSystemScheduler, System, World};
 
 // Test Components for edge case scenarios
 #[derive(Clone, Debug, PartialEq)]
@@ -272,7 +272,7 @@ fn test_many_component_types_on_single_entity() {
 #[test]
 fn test_stress_system_execution() {
     let mut world = World::new();
-    let mut scheduler = SystemScheduler::new();
+    let mut scheduler = SequentialSystemScheduler::new();
 
     scheduler.add_system(StressTestSystem::new(1000));
     scheduler.add_system(ComponentChainingSystem);
@@ -491,7 +491,7 @@ fn test_generic_component_type_safety() {
 #[test]
 fn test_world_state_consistency_after_stress() {
     let mut world = World::new();
-    let mut scheduler = SystemScheduler::new();
+    let mut scheduler = SequentialSystemScheduler::new();
 
     scheduler.add_system(StressTestSystem::new(100));
     scheduler.add_system(ComponentChainingSystem);
@@ -535,7 +535,7 @@ fn test_world_state_consistency_after_stress() {
 #[test]
 fn test_system_scheduler_with_no_world_changes() {
     let mut world = World::new();
-    let mut scheduler = SystemScheduler::new();
+    let mut scheduler = SequentialSystemScheduler::new();
 
     // System that does nothing
     struct NoOpSystem;
