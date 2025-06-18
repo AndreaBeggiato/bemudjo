@@ -74,9 +74,9 @@ pub trait System {
     fn after_run(&self, _world: &World) {}
 }
 
-/// A simple system scheduler that executes systems in registration order.
+/// A sequential system scheduler that executes systems in registration order.
 ///
-/// The scheduler runs all systems through three distinct phases:
+/// This scheduler runs all systems through three distinct phases sequentially:
 /// 1. All systems' `before_run` methods (preparation)
 /// 2. All systems' `run` methods (main logic)
 /// 3. All systems' `after_run` methods (cleanup/output)
@@ -88,7 +88,7 @@ pub trait System {
 ///
 /// # Example Usage
 /// ```
-/// use bemudjo_ecs::{SystemScheduler, System, World, Component};
+/// use bemudjo_ecs::{SequentialSystemScheduler, System, World, Component};
 ///
 /// #[derive(Clone, Debug, PartialEq)]
 /// struct Health { value: u32 }
@@ -112,7 +112,7 @@ pub trait System {
 ///
 /// // Setup
 /// let mut world = World::new();
-/// let mut scheduler = SystemScheduler::new();
+/// let mut scheduler = SequentialSystemScheduler::new();
 ///
 /// // Order matters! Damage must be processed before rendering
 /// scheduler.add_system(DamageSystem);
@@ -131,18 +131,18 @@ pub trait System {
 /// - Predictable timing: No complex dependency resolution
 /// - Cache-friendly: Sequential execution pattern
 /// - Deterministic: Same order every time
-pub struct SystemScheduler {
+pub struct SequentialSystemScheduler {
     systems: Vec<Box<dyn System>>,
 }
 
-impl SystemScheduler {
+impl SequentialSystemScheduler {
     /// Creates a new empty system scheduler.
     ///
     /// # Example
     /// ```
-    /// use bemudjo_ecs::SystemScheduler;
+    /// use bemudjo_ecs::SequentialSystemScheduler;
     ///
-    /// let scheduler = SystemScheduler::new();
+    /// let scheduler = SequentialSystemScheduler::new();
     /// assert_eq!(scheduler.system_count(), 0);
     /// ```
     pub fn new() -> Self {
@@ -161,7 +161,7 @@ impl SystemScheduler {
     ///
     /// # Example
     /// ```
-    /// use bemudjo_ecs::{SystemScheduler, System, World};
+    /// use bemudjo_ecs::{SequentialSystemScheduler, System, World};
     ///
     /// struct MySystem;
     /// impl System for MySystem {
@@ -170,7 +170,7 @@ impl SystemScheduler {
     ///     }
     /// }
     ///
-    /// let mut scheduler = SystemScheduler::new();
+    /// let mut scheduler = SequentialSystemScheduler::new();
     /// scheduler.add_system(MySystem);
     /// assert_eq!(scheduler.system_count(), 1);
     /// ```
@@ -182,7 +182,7 @@ impl SystemScheduler {
     ///
     /// # Example
     /// ```
-    /// use bemudjo_ecs::{SystemScheduler, System, World};
+    /// use bemudjo_ecs::{SequentialSystemScheduler, System, World};
     ///
     /// struct System1;
     /// impl System for System1 {}
@@ -190,7 +190,7 @@ impl SystemScheduler {
     /// struct System2;
     /// impl System for System2 {}
     ///
-    /// let mut scheduler = SystemScheduler::new();
+    /// let mut scheduler = SequentialSystemScheduler::new();
     /// assert_eq!(scheduler.system_count(), 0);
     ///
     /// scheduler.add_system(System1);
@@ -220,7 +220,7 @@ impl SystemScheduler {
     ///
     /// # Example
     /// ```
-    /// use bemudjo_ecs::{SystemScheduler, System, World, Component};
+    /// use bemudjo_ecs::{SequentialSystemScheduler, System, World, Component};
     ///
     /// #[derive(Clone, Debug, PartialEq)]
     /// struct Counter { value: u32 }
@@ -242,7 +242,7 @@ impl SystemScheduler {
     /// let entity = world.spawn_entity();
     /// world.add_component(entity, Counter { value: 0 }).unwrap();
     ///
-    /// let mut scheduler = SystemScheduler::new();
+    /// let mut scheduler = SequentialSystemScheduler::new();
     /// scheduler.add_system(IncrementSystem);
     ///
     /// // Run one tick
@@ -255,11 +255,11 @@ impl SystemScheduler {
     ///
     /// # Typical Application Loop
     /// ```
-    /// use bemudjo_ecs::{SystemScheduler, World};
+    /// use bemudjo_ecs::{SequentialSystemScheduler, World};
     /// use std::time::{Duration, Instant};
     ///
     /// let mut world = World::new();
-    /// let scheduler = SystemScheduler::new();
+    /// let scheduler = SequentialSystemScheduler::new();
     ///
     /// // Application runs at fixed timestep (e.g., 60 FPS or 10 TPS)
     /// let tick_duration = Duration::from_millis(100); // 10 TPS
@@ -302,17 +302,17 @@ impl SystemScheduler {
     }
 }
 
-impl Default for SystemScheduler {
+impl Default for SequentialSystemScheduler {
     /// Creates a new empty system scheduler using the default constructor.
     ///
-    /// This is equivalent to calling `SystemScheduler::new()`.
+    /// This is equivalent to calling `SequentialSystemScheduler::new()`.
     ///
     /// # Example
     /// ```
-    /// use bemudjo_ecs::SystemScheduler;
+    /// use bemudjo_ecs::SequentialSystemScheduler;
     ///
-    /// let scheduler1 = SystemScheduler::new();
-    /// let scheduler2 = SystemScheduler::default();
+    /// let scheduler1 = SequentialSystemScheduler::new();
+    /// let scheduler2 = SequentialSystemScheduler::default();
     ///
     /// assert_eq!(scheduler1.system_count(), scheduler2.system_count());
     /// ```
@@ -372,19 +372,19 @@ mod tests {
 
     #[test]
     fn test_system_scheduler_new() {
-        let scheduler = SystemScheduler::new();
+        let scheduler = SequentialSystemScheduler::new();
         assert_eq!(scheduler.system_count(), 0);
     }
 
     #[test]
     fn test_system_scheduler_default() {
-        let scheduler = SystemScheduler::default();
+        let scheduler = SequentialSystemScheduler::default();
         assert_eq!(scheduler.system_count(), 0);
     }
 
     #[test]
     fn test_add_system() {
-        let mut scheduler = SystemScheduler::new();
+        let mut scheduler = SequentialSystemScheduler::new();
         let log = Arc::new(Mutex::new(Vec::new()));
 
         scheduler.add_system(TestSystem::new("system1", log.clone()));
@@ -396,7 +396,7 @@ mod tests {
 
     #[test]
     fn test_execution_order() {
-        let mut scheduler = SystemScheduler::new();
+        let mut scheduler = SequentialSystemScheduler::new();
         let log = Arc::new(Mutex::new(Vec::new()));
 
         // Add systems in specific order
@@ -425,7 +425,7 @@ mod tests {
 
     #[test]
     fn test_three_phase_execution() {
-        let mut scheduler = SystemScheduler::new();
+        let mut scheduler = SequentialSystemScheduler::new();
         let log = Arc::new(Mutex::new(Vec::new()));
 
         scheduler.add_system(TestSystem::new("system", log.clone()));
@@ -460,7 +460,7 @@ mod tests {
         let entity = world.spawn_entity();
         world.add_component(entity, Counter { count: 0 }).unwrap();
 
-        let mut scheduler = SystemScheduler::new();
+        let mut scheduler = SequentialSystemScheduler::new();
         scheduler.add_system(IncrementSystem);
 
         // Run one tick
@@ -478,7 +478,7 @@ mod tests {
 
     #[test]
     fn test_empty_scheduler() {
-        let scheduler = SystemScheduler::new();
+        let scheduler = SequentialSystemScheduler::new();
         let mut world = World::new();
 
         // Should not panic with no systems
@@ -488,7 +488,7 @@ mod tests {
 
     #[test]
     fn test_multiple_ticks() {
-        let mut scheduler = SystemScheduler::new();
+        let mut scheduler = SequentialSystemScheduler::new();
         let log = Arc::new(Mutex::new(Vec::new()));
 
         scheduler.add_system(TestSystem::new("system", log.clone()));
@@ -515,7 +515,7 @@ mod tests {
     #[test]
     fn test_automatic_entity_cleanup() {
         let mut world = World::new();
-        let mut scheduler = SystemScheduler::new();
+        let mut scheduler = SequentialSystemScheduler::new();
 
         // Create a system that deletes entities
         struct EntityDeleterSystem;
