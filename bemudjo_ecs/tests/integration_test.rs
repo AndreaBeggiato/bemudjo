@@ -870,19 +870,24 @@ fn test_realistic_game_loop_simulation() {
         assert_eq!(player_pos.x, (tick + 1) as f32);
 
         let player_health = world.get_component::<Health>(player).unwrap();
-        if tick < 3 {
-            // Health should be regenerating normally
-            assert_eq!(
-                player_health.current,
-                std::cmp::min(90 + tick + 1, 100) as u32
-            );
-        } else if tick == 3 {
-            // Health should be reduced by damage (90 + 4 - 15 = 79)
-            assert_eq!(player_health.current, 79);
-        } else {
-            // Health should be regenerating from 79
-            let expected = std::cmp::min(79 + (tick - 3), 100) as u32;
-            assert_eq!(player_health.current, expected);
+
+        match tick.cmp(&3) {
+            std::cmp::Ordering::Less => {
+                // Health should be regenerating normally
+                assert_eq!(
+                    player_health.current,
+                    std::cmp::min(90 + tick + 1, 100) as u32
+                );
+            }
+            std::cmp::Ordering::Equal => {
+                // Health should be reduced by damage (90 + 4 - 15 = 79)
+                assert_eq!(player_health.current, 79);
+            }
+            std::cmp::Ordering::Greater => {
+                // Health should be regenerating from 79
+                let expected = std::cmp::min(79 + (tick - 3), 100) as u32;
+                assert_eq!(player_health.current, expected);
+            }
         }
     }
 

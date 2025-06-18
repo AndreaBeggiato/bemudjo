@@ -200,7 +200,7 @@ fn test_many_component_types_on_single_entity() {
         .add_component(entity, GenericComponent { value: 42i32 })
         .unwrap();
     world
-        .add_component(entity, GenericComponent { value: 3.14f64 })
+        .add_component(entity, GenericComponent { value: 1.2345f64 })
         .unwrap();
     world
         .add_component(
@@ -247,7 +247,7 @@ fn test_many_component_types_on_single_entity() {
     let float_generic = world
         .get_component::<GenericComponent<f64>>(entity)
         .unwrap();
-    assert_eq!(float_generic.value, 3.14);
+    assert_eq!(float_generic.value, 1.2345f64);
 
     let string_generic = world
         .get_component::<GenericComponent<String>>(entity)
@@ -454,7 +454,7 @@ fn test_generic_component_type_safety() {
         .add_component(entity, GenericComponent { value: 42i32 })
         .unwrap();
     world
-        .add_component(entity, GenericComponent { value: 3.14f64 })
+        .add_component(entity, GenericComponent { value: 1.2345f64 })
         .unwrap();
     world
         .add_component(
@@ -480,7 +480,7 @@ fn test_generic_component_type_safety() {
     let float_comp = world
         .get_component::<GenericComponent<f64>>(entity)
         .unwrap();
-    assert_eq!(float_comp.value, 3.14);
+    assert_eq!(float_comp.value, 1.2345);
 
     let string_comp = world
         .get_component::<GenericComponent<String>>(entity)
