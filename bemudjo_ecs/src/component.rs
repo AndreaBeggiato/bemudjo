@@ -25,6 +25,12 @@ pub trait ComponentStorage<T: Component> {
 
     /// Checks if an entity has this component.
     fn contains(&self, entity: Entity) -> bool;
+
+    /// Gets all entities that have this component type.
+    ///
+    /// Returns an iterator over all entities that have this component.
+    /// This enables efficient component-first iteration for queries.
+    fn entities(&self) -> Box<dyn Iterator<Item = Entity> + '_>;
 }
 
 /// Type-erased storage trait for storing different component types in the same collection.
@@ -44,6 +50,10 @@ pub trait AnyStorage {
 
     /// Returns the type name of the component this storage handles.
     fn component_type_name(&self) -> &'static str;
+
+    /// Checks if an entity has a component in this storage.
+    /// Used internally by the query system for TypeId-based filtering.
+    fn contains_entity(&self, entity: Entity) -> bool;
 }
 
 /// A HashMap-based implementation of ComponentStorage.
@@ -93,6 +103,10 @@ impl<T: Component> ComponentStorage<T> for HashMapComponentStorage<T> {
     fn contains(&self, entity: Entity) -> bool {
         self.data.contains_key(&entity)
     }
+
+    fn entities(&self) -> Box<dyn Iterator<Item = Entity> + '_> {
+        Box::new(self.data.keys().copied())
+    }
 }
 
 impl<T: Component> AnyStorage for HashMapComponentStorage<T> {
@@ -114,6 +128,10 @@ impl<T: Component> AnyStorage for HashMapComponentStorage<T> {
 
     fn component_type_name(&self) -> &'static str {
         std::any::type_name::<T>()
+    }
+
+    fn contains_entity(&self, entity: Entity) -> bool {
+        self.data.contains_key(&entity)
     }
 }
 
