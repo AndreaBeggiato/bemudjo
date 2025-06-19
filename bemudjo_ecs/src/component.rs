@@ -7,6 +7,7 @@ use std::collections::HashMap;
 pub trait Component: 'static {}
 
 /// Trait for component storage operations on a specific component type.
+#[doc(hidden)]
 pub trait ComponentStorage<T: Component> {
     /// Adds a component to an entity.
     fn insert(&mut self, entity: Entity, component: T) -> Result<(), ComponentError>;
@@ -35,6 +36,7 @@ pub trait ComponentStorage<T: Component> {
 
 /// Type-erased storage trait for storing different component types in the same collection.
 /// This is the key trait that enables storing different component storages in a HashMap.
+#[doc(hidden)]
 pub trait AnyStorage {
     /// Returns a reference to the storage as `&dyn Any` for downcasting.
     fn as_any(&self) -> &dyn Any;
@@ -57,6 +59,7 @@ pub trait AnyStorage {
 }
 
 /// A HashMap-based implementation of ComponentStorage.
+#[doc(hidden)]
 #[derive(Debug, Default)]
 pub struct HashMapComponentStorage<T: Component> {
     data: HashMap<Entity, T>,

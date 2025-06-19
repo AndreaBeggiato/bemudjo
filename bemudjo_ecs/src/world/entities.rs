@@ -145,7 +145,7 @@ impl World {
 
     /// Checks if an entity is active (exists and hasn't been soft-deleted).
     pub(super) fn is_entity_active(&self, entity: Entity) -> bool {
-        self.entities.contains(&entity) && !self.soft_deleted_entities.contains(&entity)
+        self.entities.contains(&entity)
     }
 }
 
