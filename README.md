@@ -18,13 +18,9 @@ bemudjo/
 ## 🧩 Crates
 
 ### bemudjo_ecs
-A custom Entity Component System library designed specifically for MUD games. This library provides:
-- Entity management
-- Component storage
-- System execution
-- Query mechanisms
+A fast and flexible Entity Component System (ECS) library designed for game development. See the [ECS README](bemudjo_ecs/README.md) for detailed documentation and examples.
 
-**Status**: 🚧 In development - implementing core ECS functionality
+**Status**: 🚧 In active development
 
 ### bemudjo_server_telnet
 The main game server that handles:
@@ -65,18 +61,6 @@ Once the server is running, connect using any telnet client:
 ```bash
 telnet localhost 2323
 ```
-
-## 🎯 Development Roadmap
-
-The ECS implementation follows a structured development plan tracked through GitHub issues. Key phases include:
-
-- [x] **Phase 0**: Project setup and workspace configuration
-- [ ] **Phase 1**: Core ECS structure (entities, components, world)
-- [ ] **Phase 2**: Systems framework and queries
-- [ ] **Phase 3**: Resources and event handling
-- [ ] **Phase 4**: Performance optimization
-- [ ] **Phase 5**: MUD-specific integration
-- [ ] **Phase 6**: Documentation and release
 
 ## 🛠️ Development
 
@@ -126,14 +110,11 @@ Currently available commands:
 - `say <message>` - Say something to other players
 - `quit` - Exit the game
 
-## 🏗️ Architecture Notes
+## 🏗️ Architecture
 
-The project uses a custom ECS implementation to handle game logic efficiently:
-- **Entities**: Unique identifiers for game objects (players, items, rooms)
-- **Components**: Data attached to entities (health, location, inventory)
-- **Systems**: Logic that processes entities with specific components
+The project uses a custom ECS (Entity Component System) implementation for efficient game logic. For detailed information about the ECS architecture, see the [ECS documentation](bemudjo_ecs/README.md).
 
-This architecture allows for:
+Key benefits:
 - Flexible game object composition
 - Efficient batch processing
 - Easy feature addition and modification
