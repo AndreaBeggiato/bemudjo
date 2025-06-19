@@ -41,7 +41,7 @@ The main game server that handles:
 
 ```bash
 # Clone the repository
-git clone https://github.com/YOUR_USERNAME/bemudjo.git
+git clone https://github.com/AndreaBeggiato/bemudjo.git
 cd bemudjo
 
 # Build all crates
