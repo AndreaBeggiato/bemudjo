@@ -411,43 +411,6 @@ fn test_large_scale_query_performance_integration() {
 }
 
 #[test]
-fn test_query_filter_trait_integration() {
-    use bemudjo_ecs::QueryFilter;
-
-    let mut world = World::new();
-    let entity1 = world.spawn_entity();
-    let entity2 = world.spawn_entity();
-
-    world
-        .add_component(entity1, Position { x: 1.0, y: 2.0 })
-        .unwrap();
-    world
-        .add_component(entity1, Velocity { x: 0.5, y: 1.0 })
-        .unwrap();
-
-    world
-        .add_component(entity2, Position { x: 3.0, y: 4.0 })
-        .unwrap();
-
-    let query = Query::<Position>::new().with::<Velocity>();
-
-    // Test QueryFilter trait implementation
-    let results: Vec<_> = query.apply(&world).collect();
-    assert_eq!(results.len(), 1);
-    assert_eq!(results[0].0, entity1);
-
-    // Test that the trait works generically
-    fn apply_filter<F: QueryFilter<Position>>(filter: &F, world: &World) -> usize {
-        filter.apply(world).count()
-    }
-
-    assert_eq!(apply_filter(&query, &world), 1);
-
-    let simple_query = Query::<Position>::new();
-    assert_eq!(apply_filter(&simple_query, &world), 2);
-}
-
-#[test]
 fn test_realistic_game_scenario_integration() {
     let mut world = World::new();
 

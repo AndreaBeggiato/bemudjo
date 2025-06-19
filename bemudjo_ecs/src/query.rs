@@ -421,29 +421,6 @@ impl<T: Component> ExactSizeIterator for QueryIter<'_, T> {
     // implemented for API compatibility but len() will count.
 }
 
-/// Advanced query filters for complex entity selection.
-///
-/// This trait enables building complex queries with multiple conditions
-/// that can be chained together for sophisticated entity filtering.
-pub trait QueryFilter<T> {
-    /// The iterator type returned by this filter.
-    type Iter<'w>: Iterator<Item = (Entity, &'w T)>
-    where
-        Self: 'w,
-        T: 'w;
-
-    /// Apply this filter to create an iterator over matching entities.
-    fn apply<'w>(&'w self, world: &'w World) -> Self::Iter<'w>;
-}
-
-impl<T: Component> QueryFilter<T> for Query<T> {
-    type Iter<'w> = QueryIter<'w, T>;
-
-    fn apply<'w>(&'w self, world: &'w World) -> Self::Iter<'w> {
-        self.iter(world)
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
