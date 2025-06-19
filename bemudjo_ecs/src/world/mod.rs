@@ -7,6 +7,7 @@ use crate::{AnyStorage, Entity};
 
 mod components;
 mod entities;
+mod resources;
 mod storage;
 
 /// The central World container that manages entities and components.
@@ -32,6 +33,7 @@ mod storage;
 /// assert!(!world.has_component::<Position>(entity));
 /// ```
 pub struct World {
+    resource_entity: Entity, // we want to store here all the resources (global state, e.g Time component)
     entities: HashSet<Entity>,
     soft_deleted_entities: HashSet<Entity>,
     component_storages: HashMap<TypeId, Box<dyn AnyStorage>>,
@@ -49,6 +51,7 @@ impl World {
     /// ```
     pub fn new() -> Self {
         Self {
+            resource_entity: Entity::new(),
             entities: HashSet::new(),
             soft_deleted_entities: HashSet::new(),
             component_storages: HashMap::new(),
