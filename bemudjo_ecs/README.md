@@ -301,7 +301,7 @@ at your option.
 
 ## 🔗 Related Projects
 
-- [bemudjo](https://github.com/your-username/bemudjo) - A MUD game server built using this ECS
+- [bemudjo](../) - A MUD game server built using this ECS
 - [bemudjo_server_telnet](../bemudjo_server_telnet) - Example telnet server implementation
 
 ---
