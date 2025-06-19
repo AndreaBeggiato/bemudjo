@@ -280,6 +280,24 @@ impl World {
 
         self.get_storage_mut::<T>().remove(entity)
     }
+
+    /// Checks if an entity has a component by TypeId.
+    ///
+    /// This is an internal method used by the query system for filtering.
+    /// External users should use `has_component<T>()` instead.
+    pub(crate) fn has_component_by_type_id(
+        &self,
+        entity: crate::Entity,
+        type_id: std::any::TypeId,
+    ) -> bool {
+        if !self.is_entity_active(entity) {
+            return false;
+        }
+
+        self.component_storages
+            .get(&type_id)
+            .is_some_and(|storage| storage.contains_entity(entity))
+    }
 }
 
 #[cfg(test)]
