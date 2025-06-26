@@ -171,8 +171,8 @@ impl System for HeavyComputationSystem {
                 let mut new_memory = ai.memory.clone();
 
                 // Simulate complex AI calculations
-                for i in 0..new_memory.len() {
-                    new_memory[i] = (new_memory[i] + (i as f32).sin()).cos();
+                for (i, memory_value) in new_memory.iter_mut().enumerate() {
+                    *memory_value = ((*memory_value) + (i as f32).sin()).cos();
                 }
 
                 world.replace_component(

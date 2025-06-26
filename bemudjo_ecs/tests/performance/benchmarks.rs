@@ -49,7 +49,7 @@ impl Component for Renderable {}
 // Benchmark helper functions
 fn benchmark_operation<F>(name: &str, operation: F, expected_max_ms: u64) -> Duration
 where
-    F: FnOnce() -> (),
+    F: FnOnce(),
 {
     let start = Instant::now();
     operation();
@@ -74,7 +74,7 @@ fn benchmark_repeated_operation<F>(
     expected_max_ms: u64,
 ) -> Duration
 where
-    F: Fn() -> (),
+    F: Fn(),
 {
     let start = Instant::now();
     for _ in 0..iterations {

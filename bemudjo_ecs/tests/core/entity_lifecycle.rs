@@ -210,7 +210,7 @@ fn test_mass_entity_creation_deletion() {
         }
 
         // Periodic cleanup
-        if chunk.len() > 0 {
+        if !chunk.is_empty() {
             world.cleanup_deleted_entities();
         }
     }
@@ -248,17 +248,17 @@ fn test_entity_deletion_with_partial_cleanup() {
     assert_eq!(world.entities().count(), 20);
 
     // Delete some entities but don't cleanup
-    for i in 0..10 {
-        world.delete_entity(entities[i]);
+    for entity in entities.iter().take(10) {
+        world.delete_entity(*entity);
     }
 
     assert_eq!(world.entities().count(), 10);
 
     // Add components to remaining entities
-    for i in 10..20 {
+    for (i, entity) in entities.iter().enumerate().take(20).skip(10) {
         world
             .add_component(
-                entities[i],
+                *entity,
                 Position {
                     x: i as f32,
                     y: i as f32,
@@ -268,21 +268,21 @@ fn test_entity_deletion_with_partial_cleanup() {
     }
 
     // Verify state before cleanup
-    for i in 0..10 {
-        assert!(!world.has_component::<Tag>(entities[i]));
+    for entity in entities.iter().take(10) {
+        assert!(!world.has_component::<Tag>(*entity));
     }
-    for i in 10..20 {
-        assert!(world.has_component::<Tag>(entities[i]));
-        assert!(world.has_component::<Position>(entities[i]));
+    for entity in entities.iter().take(20).skip(10) {
+        assert!(world.has_component::<Tag>(*entity));
+        assert!(world.has_component::<Position>(*entity));
     }
 
     // Cleanup and verify final state
     world.cleanup_deleted_entities();
     assert_eq!(world.entities().count(), 10);
 
-    for i in 10..20 {
-        assert!(world.has_component::<Tag>(entities[i]));
-        assert!(world.has_component::<Position>(entities[i]));
+    for entity in entities.iter().take(20).skip(10) {
+        assert!(world.has_component::<Tag>(*entity));
+        assert!(world.has_component::<Position>(*entity));
     }
 }
 

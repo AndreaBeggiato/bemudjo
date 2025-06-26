@@ -494,7 +494,7 @@ fn test_resource_state_consistency() {
         assert_eq!(time.frame_count, frame);
         assert!((time.elapsed - (frame as f64 * 0.016)).abs() < 0.001);
 
-        let expected_score = ((frame / 60) * 100) as u64;
+        let expected_score = (frame / 60) * 100;
         assert_eq!(stats.score, expected_score);
 
         let expected_level = (1 + (expected_score / 1000)) as u32;

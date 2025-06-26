@@ -471,7 +471,7 @@ fn test_world_large_scale_operations() {
     }
 
     assert_eq!(pos_count, ENTITY_COUNT / 2);
-    assert_eq!(health_count, (ENTITY_COUNT + 2) / 3); // Ceiling division
+    assert_eq!(health_count, ENTITY_COUNT.div_ceil(3)); // Ceiling division
 
     // Mass deletion (every 5th entity)
     for i in (0..ENTITY_COUNT).step_by(5) {

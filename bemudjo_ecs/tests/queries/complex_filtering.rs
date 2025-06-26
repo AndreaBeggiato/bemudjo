@@ -46,8 +46,8 @@ struct Enemy;
 impl Component for Enemy {}
 
 #[derive(Clone, Debug, PartialEq)]
-struct NPC;
-impl Component for NPC {}
+struct Npc;
+impl Component for Npc {}
 
 #[derive(Clone, Debug, PartialEq)]
 struct Tag {
@@ -159,7 +159,7 @@ fn test_complex_multi_component_filtering() {
         )
         .unwrap();
 
-    // Create NPCs
+    // Create Npcs
     let npc1 = world.spawn_entity();
     world
         .add_component(npc1, Position { x: 20.0, y: 0.0 })
@@ -173,7 +173,7 @@ fn test_complex_multi_component_filtering() {
             },
         )
         .unwrap();
-    world.add_component(npc1, NPC).unwrap();
+    world.add_component(npc1, Npc).unwrap();
     world
         .add_component(
             npc1,
@@ -196,7 +196,7 @@ fn test_complex_multi_component_filtering() {
             },
         )
         .unwrap();
-    world.add_component(npc2, NPC).unwrap();
+    world.add_component(npc2, Npc).unwrap();
     world
         .add_component(
             npc2,
@@ -272,10 +272,10 @@ fn test_complex_multi_component_filtering() {
         .collect();
     assert_eq!(high_level_results.len(), 2); // Player (5), enemy2 (4)
 
-    // Test 6: Tagged NPCs
-    let tagged_npc_query = Query::<Position>::new().with::<NPC>().with::<Tag>();
+    // Test 6: Tagged Npcs
+    let tagged_npc_query = Query::<Position>::new().with::<Npc>().with::<Tag>();
     let tagged_npc_results: Vec<_> = tagged_npc_query.iter(&world).collect();
-    assert_eq!(tagged_npc_results.len(), 2); // Both NPCs have tags
+    assert_eq!(tagged_npc_results.len(), 2); // Both Npcs have tags
 }
 
 #[test]
@@ -327,7 +327,7 @@ fn test_exclusion_filtering_patterns() {
             },
         )
         .unwrap();
-    world.add_component(entity3, NPC).unwrap();
+    world.add_component(entity3, Npc).unwrap();
 
     let entity4 = world.spawn_entity();
     world
@@ -442,14 +442,14 @@ fn test_nested_query_conditions() {
             }
         }
 
-        // Pattern 3: NPCs (multiple of 5)
+        // Pattern 3: Npcs (multiple of 5)
         if i % 5 == 0 {
-            world.add_component(entity, NPC).unwrap();
+            world.add_component(entity, Npc).unwrap();
             world
                 .add_component(
                     entity,
                     Tag {
-                        name: format!("NPC{}", i),
+                        name: format!("Npc{}", i),
                     },
                 )
                 .unwrap();
@@ -506,9 +506,9 @@ fn test_nested_query_conditions() {
         (0..20).filter(|&i| i % 9 == 0 && i % 7 != 0).collect();
     assert_eq!(damaged_enemies.len(), expected_damaged_enemies.len());
 
-    // Test 3: Armored NPCs (NPC + Armor, no Dead)
+    // Test 3: Armored Npcs (Npc + Armor, no Dead)
     let armored_npcs_query = Query::<Position>::new()
-        .with::<NPC>()
+        .with::<Npc>()
         .with::<Armor>()
         .without::<Dead>();
     let armored_npcs = armored_npcs_query.iter(&world).collect::<Vec<_>>();
@@ -750,7 +750,7 @@ fn test_dynamic_filtering_with_component_values() {
         } else if i < 7 {
             world.add_component(entity, Enemy).unwrap();
         } else {
-            world.add_component(entity, NPC).unwrap();
+            world.add_component(entity, Npc).unwrap();
         }
     }
 
@@ -833,7 +833,7 @@ fn test_dynamic_filtering_with_component_values() {
         .collect();
     assert_eq!(elite_players.len(), 1); // i = 2 (only player with level >= 2)
 
-    // Test: Combat-ready entities (have weapon AND good health AND not NPC)
+    // Test: Combat-ready entities (have weapon AND good health AND not Npc)
     let combat_ready: Vec<_> = base_query
         .iter(&world)
         .filter(|(entity, _)| {
@@ -842,13 +842,13 @@ fn test_dynamic_filtering_with_component_values() {
                 .get_component::<Health>(*entity)
                 .map(|h| h.current >= 30)
                 .unwrap_or(false);
-            let not_npc = !world.has_component::<NPC>(*entity);
+            let not_npc = !world.has_component::<Npc>(*entity);
 
             has_weapon && good_health && not_npc
         })
         .collect();
-    // Should find even numbers i where health >= 30 and not NPC
-    // i = 4, 6 (i = 8 is NPC)
+    // Should find even numbers i where health >= 30 and not Npc
+    // i = 4, 6 (i = 8 is Npc)
     assert_eq!(combat_ready.len(), 2);
 }
 

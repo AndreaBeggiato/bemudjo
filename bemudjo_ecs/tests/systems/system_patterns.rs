@@ -215,8 +215,6 @@ fn test_read_only_system_pattern() {
 
     scheduler.build().unwrap();
 
-    scheduler.build().unwrap();
-
     // Create entities with counters
     let entity1 = world.spawn_entity();
     let entity2 = world.spawn_entity();

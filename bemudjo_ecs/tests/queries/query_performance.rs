@@ -364,8 +364,8 @@ fn test_query_performance_under_modification() {
     // Modify world by adding/removing components in a meaningful way
     let mut modifications_made = 0;
 
-    for i in 0..1000 {
-        let entity = entities[i];
+    for (i, entity) in entities.iter().enumerate().take(1000) {
+        let entity = *entity;
 
         if i % 3 == 0 {
             // Add Health to entities that don't have it (odd-indexed entities)
@@ -534,9 +534,9 @@ fn test_multiple_concurrent_queries() {
     // Verify expected counts
     assert_eq!(results[0], ENTITY_COUNT); // All have Position
     assert_eq!(results[1], ENTITY_COUNT / 2); // Half have Velocity
-    assert_eq!(results[2], (ENTITY_COUNT + 2) / 3); // Third have Health
-    assert_eq!(results[3], (ENTITY_COUNT + 4) / 5); // Fifth have Experience
-    assert_eq!(results[4], (ENTITY_COUNT + 6) / 7); // Seventh have Tag
+    assert_eq!(results[2], ENTITY_COUNT.div_ceil(3)); // Third have Health
+    assert_eq!(results[3], ENTITY_COUNT.div_ceil(5)); // Fifth have Experience
+    assert_eq!(results[4], ENTITY_COUNT.div_ceil(7)); // Seventh have Tag
 }
 
 #[test]

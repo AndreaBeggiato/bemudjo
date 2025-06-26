@@ -166,7 +166,6 @@ pub trait System {
 ///     }
 /// }
 /// ```
-
 #[cfg(test)]
 mod tests {
     use super::*;

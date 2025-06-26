@@ -43,12 +43,12 @@ struct Enemy {
 impl Component for Enemy {}
 
 #[derive(Clone, Debug, PartialEq)]
-struct NPC {
+struct Npc {
     name: String,
     dialogue: String,
     shop_items: Vec<String>,
 }
-impl Component for NPC {}
+impl Component for Npc {}
 
 #[derive(Clone, Debug, PartialEq)]
 struct Weapon {
@@ -705,7 +705,7 @@ fn test_mmo_like_scenario() {
 
     // Create multiple players (simulating MMO)
     let mut players = Vec::new();
-    let player_classes = vec!["Warrior", "Mage", "Archer", "Healer"];
+    let player_classes = ["Warrior", "Mage", "Archer", "Healer"];
 
     for i in 0..10 {
         let player = world.spawn_entity();
@@ -823,7 +823,7 @@ fn test_mmo_like_scenario() {
         players.push(player);
     }
 
-    // Create NPCs (towns, shops, etc.)
+    // Create Npcs (towns, shops, etc.)
     for i in 0..5 {
         let npc = world.spawn_entity();
         world
@@ -838,7 +838,7 @@ fn test_mmo_like_scenario() {
         world
             .add_component(
                 npc,
-                NPC {
+                Npc {
                     name: format!("Merchant{}", i),
                     dialogue: "Welcome to my shop!".to_string(),
                     shop_items: vec![
@@ -1018,8 +1018,8 @@ fn test_mmo_like_scenario() {
     assert!(living_players > 0); // Some players should survive
     assert!(total_levels >= 10); // Players should have leveled up significantly
 
-    // NPCs should still exist
-    let npc_count = Query::<NPC>::new().iter(&world).count();
+    // Npcs should still exist
+    let npc_count = Query::<Npc>::new().iter(&world).count();
     assert_eq!(npc_count, 5);
 }
 
