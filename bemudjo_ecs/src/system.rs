@@ -1,4 +1,5 @@
 use crate::World;
+use std::any::TypeId;
 
 /// A trait defining the interface for systems that process entities.
 ///
@@ -42,6 +43,56 @@ use crate::World;
 /// }
 /// ```
 pub trait System {
+    /// Returns the dependencies of this system.
+    ///
+    /// Dependencies are systems that must execute before this system runs.
+    /// The system scheduler uses this information to determine execution order.
+    ///
+    /// # Implementation Note
+    /// Due to Rust's current limitations, `TypeId::of::<T>()` is not yet stable as a const function.
+    /// Therefore, we use `LazyLock` to create static dependency arrays that are initialized once
+    /// on first access. This provides type safety while working on stable Rust.
+    ///
+    /// # Example
+    /// ```
+    /// use bemudjo_ecs::{System, World};
+    /// use std::any::TypeId;
+    /// use std::sync::LazyLock;
+    ///
+    /// // Define dependencies using LazyLock for lazy initialization
+    /// static MOVEMENT_SYSTEM_DEPS: LazyLock<Vec<TypeId>> = LazyLock::new(|| {
+    ///     vec![TypeId::of::<InputSystem>()]
+    /// });
+    ///
+    /// struct InputSystem;
+    /// impl System for InputSystem {
+    ///     fn run(&self, world: &mut World) {
+    ///         // Process input
+    ///     }
+    /// }
+    ///
+    /// struct MovementSystem;
+    /// impl System for MovementSystem {
+    ///     fn dependencies(&self) -> &[TypeId] {
+    ///         &MOVEMENT_SYSTEM_DEPS
+    ///     }
+    ///
+    ///     fn run(&self, world: &mut World) {
+    ///         // Movement logic here
+    ///     }
+    /// }
+    /// ```
+    ///
+    /// # Why LazyLock?
+    /// We can't use const arrays like `const DEPS: &[TypeId] = &[TypeId::of::<T>()]` because:
+    /// - `TypeId::of::<T>()` requires the unstable `const_type_id` feature (nightly-only)
+    /// - We want to maintain compatibility with stable Rust
+    /// - LazyLock provides thread-safe lazy initialization with minimal overhead
+    /// - Dependencies are typically queried once during scheduler setup, so performance impact is negligible
+    fn dependencies(&self) -> &[TypeId] {
+        &[] // Default: no dependencies
+    }
+
     /// Called before the main execution phase.
     ///
     /// Use this for read-only preparation work such as:
@@ -74,503 +125,274 @@ pub trait System {
     fn after_run(&self, _world: &World) {}
 }
 
-/// A sequential system scheduler that executes systems in registration order.
+/// Example implementation of a system with dependencies.
 ///
-/// This scheduler runs all systems through three distinct phases sequentially:
-/// 1. All systems' `before_run` methods (preparation)
-/// 2. All systems' `run` methods (main logic)
-/// 3. All systems' `after_run` methods (cleanup/output)
+/// This demonstrates the recommended pattern for creating systems with static dependencies
+/// while maintaining compatibility with trait objects and stable Rust.
 ///
-/// # Execution Order
-/// Systems execute in the order they were added with `add_system()`.
-/// This makes the execution predictable and deterministic, which is
-/// crucial for applications that require consistent behavior.
+/// # Why LazyLock?
+/// We use `LazyLock` instead of const arrays because `TypeId::of::<T>()` requires
+/// the unstable `const_type_id` feature. LazyLock provides thread-safe lazy initialization
+/// that works on stable Rust with minimal performance overhead.
 ///
-/// # Example Usage
+/// # Example
 /// ```
-/// use bemudjo_ecs::{SequentialSystemScheduler, System, World, Component};
+/// use bemudjo_ecs::{System, World};
+/// use std::any::TypeId;
+/// use std::sync::LazyLock;
 ///
-/// #[derive(Clone, Debug, PartialEq)]
-/// struct Health { value: u32 }
-/// impl Component for Health {}
+/// // Define dependencies using LazyLock
+/// static MOVEMENT_SYSTEM_DEPS: LazyLock<Vec<TypeId>> = LazyLock::new(|| {
+///     vec![TypeId::of::<InputSystem>()]
+/// });
 ///
-/// struct DamageSystem;
-/// impl System for DamageSystem {
+/// // A system with no dependencies
+/// struct InputSystem;
+/// impl System for InputSystem {
 ///     fn run(&self, world: &mut World) {
-///         // Process damage logic
-///         println!("Processing damage...");
+///         // Process input
 ///     }
 /// }
 ///
-/// struct RenderSystem;
-/// impl System for RenderSystem {
-///     fn after_run(&self, world: &World) {
-///         // Render entities
-///         println!("Rendering frame...");
+/// // A system that depends on InputSystem
+/// struct MovementSystem;
+/// impl System for MovementSystem {
+///     fn dependencies(&self) -> &[TypeId] {
+///         &MOVEMENT_SYSTEM_DEPS
 ///     }
-/// }
 ///
-/// // Setup
-/// let mut world = World::new();
-/// let mut scheduler = SequentialSystemScheduler::new();
-///
-/// // Order matters! Damage must be processed before rendering
-/// scheduler.add_system(DamageSystem);
-/// scheduler.add_system(RenderSystem);
-///
-/// // Application loop
-/// loop {
-///     scheduler.run_tick(&mut world);
-///     // Sleep until next tick...
-///     break; // For example purposes
+///     fn run(&self, world: &mut World) {
+///         // Movement logic - guaranteed to run after InputSystem
+///     }
 /// }
 /// ```
-///
-/// # Performance Characteristics
-/// - Low overhead: Simple iteration through systems
-/// - Predictable timing: No complex dependency resolution
-/// - Cache-friendly: Sequential execution pattern
-/// - Deterministic: Same order every time
-pub struct SequentialSystemScheduler {
-    systems: Vec<Box<dyn System>>,
-}
-
-impl SequentialSystemScheduler {
-    /// Creates a new empty system scheduler.
-    ///
-    /// # Example
-    /// ```
-    /// use bemudjo_ecs::SequentialSystemScheduler;
-    ///
-    /// let scheduler = SequentialSystemScheduler::new();
-    /// assert_eq!(scheduler.system_count(), 0);
-    /// ```
-    pub fn new() -> Self {
-        Self {
-            systems: Vec::new(),
-        }
-    }
-
-    /// Adds a system to the scheduler.
-    ///
-    /// Systems will execute in the order they are added. Each system
-    /// must implement the `System` trait.
-    ///
-    /// # Parameters
-    /// * `system` - Any type implementing the `System` trait
-    ///
-    /// # Example
-    /// ```
-    /// use bemudjo_ecs::{SequentialSystemScheduler, System, World};
-    ///
-    /// struct MySystem;
-    /// impl System for MySystem {
-    ///     fn run(&self, world: &mut World) {
-    ///         println!("MySystem is running!");
-    ///     }
-    /// }
-    ///
-    /// let mut scheduler = SequentialSystemScheduler::new();
-    /// scheduler.add_system(MySystem);
-    /// assert_eq!(scheduler.system_count(), 1);
-    /// ```
-    pub fn add_system<S: System + 'static>(&mut self, system: S) {
-        self.systems.push(Box::new(system));
-    }
-
-    /// Returns the number of systems currently registered.
-    ///
-    /// # Example
-    /// ```
-    /// use bemudjo_ecs::{SequentialSystemScheduler, System, World};
-    ///
-    /// struct System1;
-    /// impl System for System1 {}
-    ///
-    /// struct System2;
-    /// impl System for System2 {}
-    ///
-    /// let mut scheduler = SequentialSystemScheduler::new();
-    /// assert_eq!(scheduler.system_count(), 0);
-    ///
-    /// scheduler.add_system(System1);
-    /// assert_eq!(scheduler.system_count(), 1);
-    ///
-    /// scheduler.add_system(System2);
-    /// assert_eq!(scheduler.system_count(), 2);
-    /// ```
-    pub fn system_count(&self) -> usize {
-        self.systems.len()
-    }
-
-    /// Executes one complete tick of all registered systems.
-    ///
-    /// This method runs all systems through their four phases:
-    /// 1. **Preparation Phase**: All systems' `before_run` methods
-    /// 2. **Execution Phase**: All systems' `run` methods
-    /// 3. **Cleanup Phase**: All systems' `after_run` methods
-    /// 4. **Entity Cleanup**: Automatic cleanup of deleted entities
-    ///
-    /// Systems execute in registration order within each phase. After all systems
-    /// complete, deleted entities are automatically cleaned up to maintain optimal
-    /// performance and prevent memory leaks.
-    ///
-    /// # Parameters
-    /// * `world` - Mutable reference to the ECS world
-    ///
-    /// # Example
-    /// ```
-    /// use bemudjo_ecs::{SequentialSystemScheduler, System, World, Component};
-    ///
-    /// #[derive(Clone, Debug, PartialEq)]
-    /// struct Counter { value: u32 }
-    /// impl Component for Counter {}
-    ///
-    /// struct IncrementSystem;
-    /// impl System for IncrementSystem {
-    ///     fn run(&self, world: &mut World) {
-    ///         for entity in world.entities().cloned().collect::<Vec<_>>() {
-    ///             if let Some(counter) = world.get_component::<Counter>(entity) {
-    ///                 let new_counter = Counter { value: counter.value + 1 };
-    ///                 world.replace_component(entity, new_counter);
-    ///             }
-    ///         }
-    ///     }
-    /// }
-    ///
-    /// let mut world = World::new();
-    /// let entity = world.spawn_entity();
-    /// world.add_component(entity, Counter { value: 0 }).unwrap();
-    ///
-    /// let mut scheduler = SequentialSystemScheduler::new();
-    /// scheduler.add_system(IncrementSystem);
-    ///
-    /// // Run one tick
-    /// scheduler.run_tick(&mut world);
-    ///
-    /// // Counter should be incremented
-    /// let counter = world.get_component::<Counter>(entity).unwrap();
-    /// assert_eq!(counter.value, 1);
-    /// ```
-    ///
-    /// # Typical Application Loop
-    /// ```
-    /// use bemudjo_ecs::{SequentialSystemScheduler, World};
-    /// use std::time::{Duration, Instant};
-    ///
-    /// let mut world = World::new();
-    /// let scheduler = SequentialSystemScheduler::new();
-    ///
-    /// // Application runs at fixed timestep (e.g., 60 FPS or 10 TPS)
-    /// let tick_duration = Duration::from_millis(100); // 10 TPS
-    ///
-    /// for _tick in 0..5 { // Run 5 ticks for example
-    ///     let start = Instant::now();
-    ///
-    ///     // Execute all systems for this tick
-    ///     scheduler.run_tick(&mut world);
-    ///
-    ///     // Sleep until next tick (timing control)
-    ///     let elapsed = start.elapsed();
-    ///     if elapsed < tick_duration {
-    ///         std::thread::sleep(tick_duration - elapsed);
-    ///     }
-    /// }
-    /// ```
-    pub fn run_tick(&self, world: &mut World) {
-        // Phase 1: Preparation - All before_run methods
-        // This phase is read-only and could be parallelized in the future
-        for system in &self.systems {
-            system.before_run(world);
-        }
-
-        // Phase 2: Execution - All run methods
-        // This phase modifies the world and must be sequential for safety
-        for system in &self.systems {
-            system.run(world);
-        }
-
-        // Phase 3: Cleanup - All after_run methods
-        // This phase is read-only and could be parallelized in the future
-        for system in &self.systems {
-            system.after_run(world);
-        }
-
-        // Phase 4: Entity cleanup - Remove component data for deleted entities
-        // This ensures clean state for the next tick and prevents memory leaks
-        world.cleanup_deleted_entities();
-    }
-}
-
-impl Default for SequentialSystemScheduler {
-    /// Creates a new empty system scheduler using the default constructor.
-    ///
-    /// This is equivalent to calling `SequentialSystemScheduler::new()`.
-    ///
-    /// # Example
-    /// ```
-    /// use bemudjo_ecs::SequentialSystemScheduler;
-    ///
-    /// let scheduler1 = SequentialSystemScheduler::new();
-    /// let scheduler2 = SequentialSystemScheduler::default();
-    ///
-    /// assert_eq!(scheduler1.system_count(), scheduler2.system_count());
-    /// ```
-    fn default() -> Self {
-        Self::new()
-    }
-}
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{Component, World};
-    use std::sync::{Arc, Mutex};
-
-    #[derive(Debug, Clone, PartialEq)]
-    struct Counter {
-        count: u32,
-    }
-    impl Component for Counter {}
-
-    struct TestSystem {
-        name: String,
-        execution_log: Arc<Mutex<Vec<String>>>,
-    }
-
-    impl TestSystem {
-        fn new(name: &str, log: Arc<Mutex<Vec<String>>>) -> Self {
-            Self {
-                name: name.to_string(),
-                execution_log: log,
-            }
-        }
-    }
-
-    impl System for TestSystem {
-        fn before_run(&self, _world: &World) {
-            self.execution_log
-                .lock()
-                .unwrap()
-                .push(format!("{}_before", self.name));
-        }
-
-        fn run(&self, _world: &mut World) {
-            self.execution_log
-                .lock()
-                .unwrap()
-                .push(format!("{}_run", self.name));
-        }
-
-        fn after_run(&self, _world: &World) {
-            self.execution_log
-                .lock()
-                .unwrap()
-                .push(format!("{}_after", self.name));
-        }
-    }
+    use crate::World;
+    use std::any::TypeId;
 
     #[test]
-    fn test_system_scheduler_new() {
-        let scheduler = SequentialSystemScheduler::new();
-        assert_eq!(scheduler.system_count(), 0);
-    }
+    fn test_system_dependencies() {
+        use std::sync::LazyLock;
 
-    #[test]
-    fn test_system_scheduler_default() {
-        let scheduler = SequentialSystemScheduler::default();
-        assert_eq!(scheduler.system_count(), 0);
-    }
+        // Define dependencies using LazyLock for stable Rust compatibility
+        static PHYSICS_SYSTEM_DEPS: LazyLock<Vec<TypeId>> =
+            LazyLock::new(|| vec![TypeId::of::<InputSystem>()]);
 
-    #[test]
-    fn test_add_system() {
-        let mut scheduler = SequentialSystemScheduler::new();
-        let log = Arc::new(Mutex::new(Vec::new()));
+        static COLLISION_SYSTEM_DEPS: LazyLock<Vec<TypeId>> =
+            LazyLock::new(|| vec![TypeId::of::<PhysicsSystem>()]);
 
-        scheduler.add_system(TestSystem::new("system1", log.clone()));
-        assert_eq!(scheduler.system_count(), 1);
+        static RENDER_SYSTEM_DEPS: LazyLock<Vec<TypeId>> = LazyLock::new(|| {
+            vec![
+                TypeId::of::<PhysicsSystem>(),
+                TypeId::of::<CollisionSystem>(),
+            ]
+        });
 
-        scheduler.add_system(TestSystem::new("system2", log.clone()));
-        assert_eq!(scheduler.system_count(), 2);
-    }
-
-    #[test]
-    fn test_execution_order() {
-        let mut scheduler = SequentialSystemScheduler::new();
-        let log = Arc::new(Mutex::new(Vec::new()));
-
-        // Add systems in specific order
-        scheduler.add_system(TestSystem::new("first", log.clone()));
-        scheduler.add_system(TestSystem::new("second", log.clone()));
-        scheduler.add_system(TestSystem::new("third", log.clone()));
-
-        let mut world = World::new();
-        scheduler.run_tick(&mut world);
-
-        let execution_order = log.lock().unwrap();
-        let expected = vec![
-            "first_before",
-            "second_before",
-            "third_before", // All before_run
-            "first_run",
-            "second_run",
-            "third_run", // All run
-            "first_after",
-            "second_after",
-            "third_after", // All after_run
-        ];
-
-        assert_eq!(*execution_order, expected);
-    }
-
-    #[test]
-    fn test_three_phase_execution() {
-        let mut scheduler = SequentialSystemScheduler::new();
-        let log = Arc::new(Mutex::new(Vec::new()));
-
-        scheduler.add_system(TestSystem::new("system", log.clone()));
-
-        let mut world = World::new();
-        scheduler.run_tick(&mut world);
-
-        let execution_order = log.lock().unwrap();
-        assert_eq!(
-            *execution_order,
-            vec!["system_before", "system_run", "system_after"]
-        );
-    }
-
-    struct IncrementSystem;
-    impl System for IncrementSystem {
-        fn run(&self, world: &mut World) {
-            for entity in world.entities().cloned().collect::<Vec<_>>() {
-                if let Some(counter) = world.get_component::<Counter>(entity) {
-                    let new_counter = Counter {
-                        count: counter.count + 1,
-                    };
-                    world.replace_component(entity, new_counter);
-                }
-            }
-        }
-    }
-
-    #[test]
-    fn test_system_modifies_world() {
-        let mut world = World::new();
-        let entity = world.spawn_entity();
-        world.add_component(entity, Counter { count: 0 }).unwrap();
-
-        let mut scheduler = SequentialSystemScheduler::new();
-        scheduler.add_system(IncrementSystem);
-
-        // Run one tick
-        scheduler.run_tick(&mut world);
-
-        // Counter should be incremented
-        let counter = world.get_component::<Counter>(entity).unwrap();
-        assert_eq!(counter.count, 1);
-
-        // Run another tick
-        scheduler.run_tick(&mut world);
-        let counter = world.get_component::<Counter>(entity).unwrap();
-        assert_eq!(counter.count, 2);
-    }
-
-    #[test]
-    fn test_empty_scheduler() {
-        let scheduler = SequentialSystemScheduler::new();
-        let mut world = World::new();
-
-        // Should not panic with no systems
-        scheduler.run_tick(&mut world);
-        assert_eq!(scheduler.system_count(), 0);
-    }
-
-    #[test]
-    fn test_multiple_ticks() {
-        let mut scheduler = SequentialSystemScheduler::new();
-        let log = Arc::new(Mutex::new(Vec::new()));
-
-        scheduler.add_system(TestSystem::new("system", log.clone()));
-
-        let mut world = World::new();
-
-        // Run multiple ticks
-        scheduler.run_tick(&mut world);
-        scheduler.run_tick(&mut world);
-
-        let execution_order = log.lock().unwrap();
-        let expected = vec![
-            "system_before",
-            "system_run",
-            "system_after", // Tick 1
-            "system_before",
-            "system_run",
-            "system_after", // Tick 2
-        ];
-
-        assert_eq!(*execution_order, expected);
-    }
-
-    #[test]
-    fn test_automatic_entity_cleanup() {
-        let mut world = World::new();
-        let mut scheduler = SequentialSystemScheduler::new();
-
-        // Create a system that deletes entities
-        struct EntityDeleterSystem;
-        impl System for EntityDeleterSystem {
-            fn run(&self, world: &mut World) {
-                // Delete all entities with counter value >= 5
-                let to_delete: Vec<_> = world
-                    .entities()
-                    .cloned()
-                    .filter(|&entity| {
-                        if let Some(counter) = world.get_component::<Counter>(entity) {
-                            counter.count >= 5
-                        } else {
-                            false
-                        }
-                    })
-                    .collect();
-
-                for entity in to_delete {
-                    world.delete_entity(entity);
-                }
+        // Test systems using the LazyLock approach
+        struct InputSystem;
+        impl System for InputSystem {
+            fn run(&self, _world: &mut World) {
+                // Input processing logic
             }
         }
 
-        scheduler.add_system(EntityDeleterSystem);
+        struct PhysicsSystem;
+        impl System for PhysicsSystem {
+            fn dependencies(&self) -> &[TypeId] {
+                &PHYSICS_SYSTEM_DEPS
+            }
 
-        // Create some entities with counters
-        let entity1 = world.spawn_entity();
-        let entity2 = world.spawn_entity();
-        let entity3 = world.spawn_entity();
+            fn run(&self, _world: &mut World) {
+                // Physics simulation
+            }
+        }
 
-        world.add_component(entity1, Counter { count: 3 }).unwrap();
-        world.add_component(entity2, Counter { count: 5 }).unwrap(); // Will be deleted
-        world.add_component(entity3, Counter { count: 7 }).unwrap(); // Will be deleted
+        struct CollisionSystem;
+        impl System for CollisionSystem {
+            fn dependencies(&self) -> &[TypeId] {
+                &COLLISION_SYSTEM_DEPS
+            }
 
-        // Before tick: 3 entities, all have components
-        assert_eq!(world.entities().count(), 3);
-        assert!(world.has_component::<Counter>(entity1));
-        assert!(world.has_component::<Counter>(entity2));
-        assert!(world.has_component::<Counter>(entity3));
+            fn run(&self, _world: &mut World) {
+                // Collision detection and response
+            }
+        }
 
-        // Run one tick - should delete entities 2 and 3, and automatically clean them up
-        scheduler.run_tick(&mut world);
+        struct RenderSystem;
+        impl System for RenderSystem {
+            fn dependencies(&self) -> &[TypeId] {
+                &RENDER_SYSTEM_DEPS
+            }
 
-        // After tick: 1 entity remains, deleted entities are cleaned up
-        assert_eq!(world.entities().count(), 1);
-        assert!(world.has_component::<Counter>(entity1)); // Should remain
-        assert!(!world.has_component::<Counter>(entity2)); // Should be cleaned up
-        assert!(!world.has_component::<Counter>(entity3)); // Should be cleaned up
+            fn run(&self, _world: &mut World) {
+                // Rendering logic
+            }
+        }
 
-        // Verify component data was cleaned from storage
-        assert_eq!(world.get_component::<Counter>(entity2), None);
-        assert_eq!(world.get_component::<Counter>(entity3), None);
+        // Test the complete dependency chain
+        let input = InputSystem;
+        let physics = PhysicsSystem;
+        let collision = CollisionSystem;
+        let render = RenderSystem;
 
-        // Entities should not be in soft_deleted list anymore (internal verification)
-        // This is verified implicitly by the fact that manual cleanup isn't needed
+        // Verify dependency chains
+        assert_eq!(input.dependencies().len(), 0); // No dependencies
+
+        let physics_deps = physics.dependencies();
+        assert_eq!(physics_deps.len(), 1);
+        assert!(physics_deps.contains(&TypeId::of::<InputSystem>()));
+
+        let collision_deps = collision.dependencies();
+        assert_eq!(collision_deps.len(), 1);
+        assert!(collision_deps.contains(&TypeId::of::<PhysicsSystem>()));
+
+        let render_deps = render.dependencies();
+        assert_eq!(render_deps.len(), 2);
+        assert!(render_deps.contains(&TypeId::of::<PhysicsSystem>()));
+        assert!(render_deps.contains(&TypeId::of::<CollisionSystem>()));
+    }
+
+    #[test]
+    fn test_default_dependencies_behavior() {
+        // Test that systems without custom dependencies return empty slice
+        struct SimpleSystem;
+        impl System for SimpleSystem {
+            fn run(&self, _world: &mut World) {}
+        }
+
+        let system = SimpleSystem;
+        assert_eq!(system.dependencies().len(), 0);
+        assert!(system.dependencies().is_empty());
+    }
+    #[test]
+    fn test_duplicate_dependencies() {
+        use std::sync::LazyLock;
+
+        // Test system with duplicate dependencies in the list
+        static DUPLICATE_DEPS: LazyLock<Vec<TypeId>> = LazyLock::new(|| {
+            vec![
+                TypeId::of::<SimpleSystem>(),
+                TypeId::of::<SimpleSystem>(), // Duplicate
+                TypeId::of::<SimpleSystem>(), // Another duplicate
+            ]
+        });
+
+        struct DuplicateDepSystem;
+        impl System for DuplicateDepSystem {
+            fn dependencies(&self) -> &[TypeId] {
+                &DUPLICATE_DEPS
+            }
+
+            fn run(&self, _world: &mut World) {}
+        }
+
+        struct SimpleSystem;
+        impl System for SimpleSystem {
+            fn run(&self, _world: &mut World) {}
+        }
+
+        let system = DuplicateDepSystem;
+        let deps = system.dependencies();
+
+        // Should have 3 entries (duplicates preserved as-is)
+        assert_eq!(deps.len(), 3);
+
+        // All should be the same TypeId
+        let expected_type = TypeId::of::<SimpleSystem>();
+        assert!(deps.iter().all(|&dep| dep == expected_type));
+    }
+
+    #[test]
+    fn test_many_dependencies() {
+        use std::sync::LazyLock;
+
+        // Test system with many dependencies
+        static MANY_DEPS: LazyLock<Vec<TypeId>> = LazyLock::new(|| {
+            vec![
+                TypeId::of::<System1>(),
+                TypeId::of::<System2>(),
+                TypeId::of::<System3>(),
+                TypeId::of::<System4>(),
+                TypeId::of::<System5>(),
+            ]
+        });
+
+        struct System1;
+        impl System for System1 {
+            fn run(&self, _world: &mut World) {}
+        }
+
+        struct System2;
+        impl System for System2 {
+            fn run(&self, _world: &mut World) {}
+        }
+
+        struct System3;
+        impl System for System3 {
+            fn run(&self, _world: &mut World) {}
+        }
+
+        struct System4;
+        impl System for System4 {
+            fn run(&self, _world: &mut World) {}
+        }
+
+        struct System5;
+        impl System for System5 {
+            fn run(&self, _world: &mut World) {}
+        }
+
+        struct ManyDepsSystem;
+        impl System for ManyDepsSystem {
+            fn dependencies(&self) -> &[TypeId] {
+                &MANY_DEPS
+            }
+
+            fn run(&self, _world: &mut World) {}
+        }
+
+        let system = ManyDepsSystem;
+        let deps = system.dependencies();
+
+        assert_eq!(deps.len(), 5);
+        assert!(deps.contains(&TypeId::of::<System1>()));
+        assert!(deps.contains(&TypeId::of::<System2>()));
+        assert!(deps.contains(&TypeId::of::<System3>()));
+        assert!(deps.contains(&TypeId::of::<System4>()));
+        assert!(deps.contains(&TypeId::of::<System5>()));
+    }
+
+    #[test]
+    fn test_dependencies_trait_object_safety() {
+        use std::sync::LazyLock;
+
+        // Test that dependencies work correctly with trait objects
+        static SYSTEM_B_DEPS: LazyLock<Vec<TypeId>> =
+            LazyLock::new(|| vec![TypeId::of::<SystemA>()]);
+
+        struct SystemA;
+        impl System for SystemA {
+            fn run(&self, _world: &mut World) {}
+        }
+
+        struct SystemB;
+        impl System for SystemB {
+            fn dependencies(&self) -> &[TypeId] {
+                &SYSTEM_B_DEPS
+            }
+
+            fn run(&self, _world: &mut World) {}
+        }
+
+        // Create systems as trait objects
+        let systems: Vec<Box<dyn System>> = vec![Box::new(SystemA), Box::new(SystemB)];
+
+        // Test that we can call dependencies through trait objects
+        assert_eq!(systems[0].dependencies().len(), 0);
+        assert_eq!(systems[1].dependencies().len(), 1);
+        assert_eq!(systems[1].dependencies()[0], TypeId::of::<SystemA>());
     }
 }
