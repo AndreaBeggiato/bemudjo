@@ -241,11 +241,11 @@ fn test_system_scheduler_basic() {
     let mut scheduler = SequentialSystemScheduler::new();
 
     // Test empty scheduler
-    assert_eq!(scheduler.system_count(), 0);
+    assert_eq!(scheduler.system_count(), 0); // Add systems
+    scheduler.add_system(MovementSystem).unwrap();
+    scheduler.add_system(HealthRegenSystem).unwrap();
 
-    // Add systems
-    scheduler.add_system(MovementSystem);
-    scheduler.add_system(HealthRegenSystem);
+    scheduler.build().unwrap();
 
     assert_eq!(scheduler.system_count(), 2);
 
@@ -312,7 +312,9 @@ fn test_system_execution_phases() {
     let mut scheduler = SequentialSystemScheduler::new();
 
     let logging_system = LoggingSystem::new();
-    scheduler.add_system(logging_system);
+    scheduler.add_system(logging_system).unwrap();
+
+    scheduler.build().unwrap();
 
     // Create some entities
     let entity1 = world.spawn_entity();
@@ -387,10 +389,11 @@ fn test_system_execution_order() {
     }
 
     // Add systems in specific order
-    scheduler.add_system(OrderTrackingSystem { id: 1 });
-    scheduler.add_system(OrderTrackingSystem { id: 2 });
-    scheduler.add_system(OrderTrackingSystem { id: 3 });
+    scheduler.add_system(OrderTrackingSystem { id: 1 }).unwrap();
+    scheduler.add_system(OrderTrackingSystem { id: 2 }).unwrap();
+    scheduler.add_system(OrderTrackingSystem { id: 3 }).unwrap();
 
+    scheduler.build().unwrap();
     assert_eq!(scheduler.system_count(), 3);
 
     // Run one tick
@@ -408,8 +411,10 @@ fn test_complex_ecs_scenario() {
     let mut scheduler = SequentialSystemScheduler::new();
 
     // Add systems
-    scheduler.add_system(MovementSystem);
-    scheduler.add_system(HealthRegenSystem);
+    scheduler.add_system(MovementSystem).unwrap();
+    scheduler.add_system(HealthRegenSystem).unwrap();
+
+    scheduler.build().unwrap();
 
     // Create a complex scenario with multiple entity types
 
@@ -597,7 +602,9 @@ fn test_performance_scenario() {
     let mut world = World::new();
     let mut scheduler = SequentialSystemScheduler::new();
 
-    scheduler.add_system(MovementSystem);
+    scheduler.add_system(MovementSystem).unwrap();
+
+    scheduler.build().unwrap();
 
     // Create many entities
     const ENTITY_COUNT: usize = 1000;
@@ -755,7 +762,8 @@ fn test_empty_system_trait_methods() {
     let mut world = World::new();
     let mut scheduler = SequentialSystemScheduler::new();
 
-    scheduler.add_system(EmptySystem);
+    scheduler.add_system(EmptySystem).unwrap();
+    scheduler.build().unwrap();
     assert_eq!(scheduler.system_count(), 1);
 
     // Should run without errors even with empty implementations
@@ -771,8 +779,10 @@ fn test_realistic_game_loop_simulation() {
     let mut scheduler = SequentialSystemScheduler::new();
 
     // Add core game systems
-    scheduler.add_system(MovementSystem);
-    scheduler.add_system(HealthRegenSystem);
+    scheduler.add_system(MovementSystem).unwrap();
+    scheduler.add_system(HealthRegenSystem).unwrap();
+
+    scheduler.build().unwrap();
 
     // Create player character
     let player = world.spawn_entity();

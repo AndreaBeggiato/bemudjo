@@ -274,8 +274,9 @@ fn test_stress_system_execution() {
     let mut world = World::new();
     let mut scheduler = SequentialSystemScheduler::new();
 
-    scheduler.add_system(StressTestSystem::new(1000));
-    scheduler.add_system(ComponentChainingSystem);
+    scheduler.add_system(StressTestSystem::new(1000)).unwrap();
+    scheduler.add_system(ComponentChainingSystem).unwrap();
+    scheduler.build().unwrap();
 
     // Run multiple ticks to stress test
     for tick in 0..10 {
@@ -493,8 +494,9 @@ fn test_world_state_consistency_after_stress() {
     let mut world = World::new();
     let mut scheduler = SequentialSystemScheduler::new();
 
-    scheduler.add_system(StressTestSystem::new(100));
-    scheduler.add_system(ComponentChainingSystem);
+    scheduler.add_system(StressTestSystem::new(100)).unwrap();
+    scheduler.add_system(ComponentChainingSystem).unwrap();
+    scheduler.build().unwrap();
 
     // Run many ticks
     for _ in 0..100 {
@@ -541,7 +543,8 @@ fn test_system_scheduler_with_no_world_changes() {
     struct NoOpSystem;
     impl System for NoOpSystem {}
 
-    scheduler.add_system(NoOpSystem);
+    scheduler.add_system(NoOpSystem).unwrap();
+    scheduler.build().unwrap();
 
     // Create initial state
     let entity = world.spawn_entity();

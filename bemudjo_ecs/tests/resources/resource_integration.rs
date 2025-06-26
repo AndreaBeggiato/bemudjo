@@ -225,10 +225,11 @@ fn test_resource_system_integration() {
     let mut scheduler = SequentialSystemScheduler::new();
 
     // Add systems
-    scheduler.add_system(TimeUpdateSystem);
-    scheduler.add_system(MovementSystem);
-    scheduler.add_system(ScoreSystem);
-    scheduler.add_system(StatisticsSystem);
+    scheduler.add_system(TimeUpdateSystem).unwrap();
+    scheduler.add_system(MovementSystem).unwrap();
+    scheduler.add_system(ScoreSystem).unwrap();
+    scheduler.add_system(StatisticsSystem).unwrap();
+    scheduler.build().unwrap();
 
     // Create entities
     let player = world.spawn_entity();
@@ -297,9 +298,10 @@ fn test_multiple_systems_sharing_resources() {
     let mut world = World::new();
     let mut scheduler = SequentialSystemScheduler::new();
 
-    scheduler.add_system(TimeUpdateSystem);
-    scheduler.add_system(SettingsAwareSystem);
-    scheduler.add_system(ScoreSystem);
+    scheduler.add_system(TimeUpdateSystem).unwrap();
+    scheduler.add_system(SettingsAwareSystem).unwrap();
+    scheduler.add_system(ScoreSystem).unwrap();
+    scheduler.build().unwrap();
 
     // Initialize resources
     world.insert_resource(GameTime {
@@ -385,9 +387,10 @@ fn test_resource_lifecycle_with_systems() {
     }
 
     let mut scheduler = SequentialSystemScheduler::new();
-    scheduler.add_system(ResourceInitializerSystem);
-    scheduler.add_system(TimeUpdateSystem);
-    scheduler.add_system(ResourceCleanupSystem);
+    scheduler.add_system(ResourceInitializerSystem).unwrap();
+    scheduler.add_system(TimeUpdateSystem).unwrap();
+    scheduler.add_system(ResourceCleanupSystem).unwrap();
+    scheduler.build().unwrap();
 
     // Initially no resources
     assert!(!world.has_resource::<GameTime>());
@@ -444,7 +447,8 @@ fn test_resource_error_handling_in_systems() {
     };
 
     let mut scheduler = SequentialSystemScheduler::new();
-    scheduler.add_system(safe_system);
+    scheduler.add_system(safe_system).unwrap();
+    scheduler.build().unwrap();
 
     // Initially no resources
     assert!(!world.has_resource::<GameTime>());
@@ -463,10 +467,11 @@ fn test_realistic_game_loop_with_resources() {
     let mut scheduler = SequentialSystemScheduler::new();
 
     // Full game loop systems
-    scheduler.add_system(TimeUpdateSystem);
-    scheduler.add_system(MovementSystem);
-    scheduler.add_system(ScoreSystem);
-    scheduler.add_system(StatisticsSystem);
+    scheduler.add_system(TimeUpdateSystem).unwrap();
+    scheduler.add_system(MovementSystem).unwrap();
+    scheduler.add_system(ScoreSystem).unwrap();
+    scheduler.add_system(StatisticsSystem).unwrap();
+    scheduler.build().unwrap();
 
     // Initialize game state
     world.insert_resource(GameTime {
@@ -610,7 +615,8 @@ fn test_resource_performance_scenario() {
     }
 
     let mut scheduler = SequentialSystemScheduler::new();
-    scheduler.add_system(MassResourceSystem);
+    scheduler.add_system(MassResourceSystem).unwrap();
+    scheduler.build().unwrap();
 
     // Run performance test
     let start_time = std::time::Instant::now();
@@ -667,8 +673,9 @@ fn test_resource_state_consistency() {
     }
 
     let mut scheduler = SequentialSystemScheduler::new();
-    scheduler.add_system(IncrementSystem);
-    scheduler.add_system(MultiplySystem);
+    scheduler.add_system(IncrementSystem).unwrap();
+    scheduler.add_system(MultiplySystem).unwrap();
+    scheduler.build().unwrap();
 
     // Run multiple ticks
     for _ in 0..5 {
@@ -724,8 +731,9 @@ fn test_resource_removal_during_execution() {
     };
 
     let mut scheduler = SequentialSystemScheduler::new();
-    scheduler.add_system(user_system);
-    scheduler.add_system(ResourceRemoverSystem);
+    scheduler.add_system(user_system).unwrap();
+    scheduler.add_system(ResourceRemoverSystem).unwrap();
+    scheduler.build().unwrap();
 
     // Initialize resource
     world.insert_resource(GameTime {

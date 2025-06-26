@@ -180,7 +180,9 @@ fn test_system_phases_execution_order() {
     let stateful_system = StatefulSystem::new();
     let state_handle = stateful_system.shared_state.clone();
 
-    scheduler.add_system(stateful_system);
+    scheduler.add_system(stateful_system).unwrap();
+
+    scheduler.build().unwrap();
 
     // Initial run
     scheduler.run_tick(&mut world);
@@ -209,7 +211,9 @@ fn test_read_only_system_pattern() {
     let read_only_system = ReadOnlySystem::new();
     let observations_handle = read_only_system.observations.clone();
 
-    scheduler.add_system(read_only_system);
+    scheduler.add_system(read_only_system).unwrap();
+
+    scheduler.build().unwrap();
 
     // Create entities with counters
     let entity1 = world.spawn_entity();
@@ -246,7 +250,9 @@ fn test_post_process_system_pattern() {
     let post_process_system = PostProcessSystem::new();
     let results_handle = post_process_system.results.clone();
 
-    scheduler.add_system(post_process_system);
+    scheduler.add_system(post_process_system).unwrap();
+
+    scheduler.build().unwrap();
 
     // Create entities with tags
     let entity1 = world.spawn_entity();
@@ -303,8 +309,10 @@ fn test_complex_system_interactions() {
     let mut scheduler = SequentialSystemScheduler::new();
 
     // Add multiple systems that interact
-    scheduler.add_system(QuerySystem);
-    scheduler.add_system(TimerSystem);
+    scheduler.add_system(QuerySystem).unwrap();
+    scheduler.add_system(TimerSystem).unwrap();
+
+    scheduler.build().unwrap();
 
     // Create entities with different component combinations
     let entity1 = world.spawn_entity();
@@ -390,9 +398,11 @@ fn test_system_with_no_entities() {
     let obs_handle = read_only_system.observations.clone();
     let results_handle = post_process_system.results.clone();
 
-    scheduler.add_system(stateful_system);
-    scheduler.add_system(read_only_system);
-    scheduler.add_system(post_process_system);
+    scheduler.add_system(stateful_system).unwrap();
+    scheduler.add_system(read_only_system).unwrap();
+    scheduler.add_system(post_process_system).unwrap();
+
+    scheduler.build().unwrap();
 
     // Run on empty world
     scheduler.run_tick(&mut world);
@@ -423,8 +433,10 @@ fn test_system_error_resilience() {
     let mut world = World::new();
     let mut scheduler = SequentialSystemScheduler::new();
 
-    scheduler.add_system(QuerySystem);
-    scheduler.add_system(TimerSystem);
+    scheduler.add_system(QuerySystem).unwrap();
+    scheduler.add_system(TimerSystem).unwrap();
+
+    scheduler.build().unwrap();
 
     // Create entities with partial component sets
     let entity1 = world.spawn_entity();
@@ -465,9 +477,11 @@ fn test_multiple_systems_same_type() {
     let mut scheduler = SequentialSystemScheduler::new();
 
     // Add multiple instances of the same system type
-    scheduler.add_system(QuerySystem);
-    scheduler.add_system(QuerySystem);
-    scheduler.add_system(QuerySystem);
+    scheduler.add_system(QuerySystem).unwrap();
+    scheduler.add_system(QuerySystem).unwrap();
+    scheduler.add_system(QuerySystem).unwrap();
+
+    scheduler.build().unwrap();
 
     assert_eq!(scheduler.system_count(), 3);
 
@@ -510,8 +524,10 @@ fn test_system_execution_with_entity_deletion() {
         }
     }
 
-    scheduler.add_system(DeletionSystem);
-    scheduler.add_system(QuerySystem); // This should handle deleted entities gracefully
+    scheduler.add_system(DeletionSystem).unwrap();
+    scheduler.add_system(QuerySystem).unwrap(); // This should handle deleted entities gracefully
+
+    scheduler.build().unwrap();
 
     // Create entities with different counter values
     let entity1 = world.spawn_entity();
@@ -566,9 +582,11 @@ fn test_system_execution_with_entity_deletion() {
 #[test]
 fn test_empty_scheduler() {
     let mut world = World::new();
-    let scheduler = SequentialSystemScheduler::new();
+    let mut scheduler = SequentialSystemScheduler::new();
 
     assert_eq!(scheduler.system_count(), 0);
+
+    scheduler.build().unwrap();
 
     // Should handle empty scheduler gracefully
     scheduler.run_tick(&mut world);
@@ -591,7 +609,11 @@ fn test_system_with_default_implementations() {
     let mut world = World::new();
     let mut scheduler = SequentialSystemScheduler::new();
 
-    scheduler.add_system(MinimalSystem);
+    scheduler.add_system(MinimalSystem).unwrap();
+
+    scheduler.build().unwrap();
+
+    scheduler.build().unwrap();
 
     scheduler.run_tick(&mut world);
 

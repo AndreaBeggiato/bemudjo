@@ -97,26 +97,34 @@ world.add_component(player, GameStats {
 ```
 
 ### Systems
-Systems contain the game logic that processes entities with specific components:
+Systems contain the game logic that processes entities with specific components. A system should be efficient and use queries to iterate over relevant entities.
 
 ```rust
 struct MovementSystem;
 
 impl System for MovementSystem {
     fn run(&self, world: &mut World) {
-        let entities: Vec<_> = world.entities().cloned().collect();
+        let mut updates = Vec::new();
 
-        for entity in entities {
-            if let (Some(pos), Some(vel)) = (
-                world.get_component::<Position>(entity),
-                world.get_component::<Velocity>(entity)
-            ) {
-                let new_pos = Position {
+        // Query for entities that have both a `Position` and a `Velocity` component.
+        // This is much more efficient than iterating through all entities.
+        let query = Query::<Position>::new().with::<Velocity>();
+        for (entity, pos) in query.iter(world) {
+            // We get the velocity separately. Since the query ensures it exists, we can unwrap.
+            let vel = world.get_component::<Velocity>(entity).unwrap();
+            updates.push((
+                entity,
+                Position {
                     x: pos.x + vel.x,
                     y: pos.y + vel.y,
-                };
-                world.replace_component(entity, new_pos);
-            }
+                },
+            ));
+        }
+
+        // Apply all the updates in a separate loop.
+        // This avoids borrowing `world` mutably while iterating, which is a good practice.
+        for (entity, new_pos) in updates {
+            world.replace_component(entity, new_pos).unwrap();
         }
     }
 }
@@ -149,17 +157,25 @@ for (entity, health) in combat_entities.iter(&world) {
 ## 🔧 Advanced Usage
 
 ### System Scheduling
-Use the built-in scheduler to organize your game systems:
+Use the built-in `SequentialSystemScheduler` to organize and run your systems in a defined order. The scheduler uses a **builder pattern**: you add all your systems first, and then call `build()` to finalize the execution order and dependency checks.
+
+Once built, the scheduler is locked and no more systems can be added.
 
 ```rust
 use bemudjo_ecs::SequentialSystemScheduler;
 
+// 1. Create a new scheduler
 let mut scheduler = SequentialSystemScheduler::new();
-scheduler.add_system(Box::new(MovementSystem));
-scheduler.add_system(Box::new(CombatSystem));
-scheduler.add_system(Box::new(RenderSystem));
 
-// Run all systems in order
+// 2. Add all your systems
+scheduler.add_system(Box::new(MovementSystem)).unwrap();
+scheduler.add_system(Box::new(CombatSystem)).unwrap();
+scheduler.add_system(Box::new(RenderSystem)).unwrap();
+
+// 3. Build the scheduler to resolve dependencies and lock it
+scheduler.build();
+
+// 4. Run all systems in order for each game tick
 scheduler.run(&mut world);
 ```
 
