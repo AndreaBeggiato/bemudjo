@@ -510,9 +510,7 @@ fn test_realistic_game_scenario_integration() {
     for &(x, y) in &enemy_positions {
         assert!(
             expected_positions.contains(&(x, y)),
-            "Found unexpected position ({}, {})",
-            x,
-            y
+            "Found unexpected position ({x}, {y})",
         );
     }
 

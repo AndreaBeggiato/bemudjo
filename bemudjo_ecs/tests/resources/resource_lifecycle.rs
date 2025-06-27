@@ -593,7 +593,7 @@ fn test_resource_large_data_lifecycle() {
     let mut world = World::new();
 
     // Insert resource with large data
-    let large_keys: Vec<String> = (0..10000).map(|i| format!("Key{}", i)).collect();
+    let large_keys: Vec<String> = (0..10000).map(|i| format!("Key{i}")).collect();
 
     world.insert_resource(InputState {
         keys_pressed: large_keys.clone(),

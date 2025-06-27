@@ -417,8 +417,7 @@ fn test_query_performance_under_modification() {
 
     // Count should have changed due to the modifications
     assert_ne!(modified_count, baseline_count,
-        "Query count should change after modifications. Baseline: {}, Modified: {}, Modifications made: {}",
-        baseline_count, modified_count, modifications_made);
+        "Query count should change after modifications. Baseline: {baseline_count}, Modified: {modified_count}, Modifications made: {modifications_made}");
 
     // Test performance after cleanup
     let start = Instant::now();
@@ -486,7 +485,7 @@ fn test_multiple_concurrent_queries() {
                 .add_component(
                     entity,
                     Tag {
-                        name: format!("Entity{}", i),
+                        name: format!("Entity{i}"),
                     },
                 )
                 .unwrap();
@@ -564,7 +563,7 @@ fn test_query_performance_with_large_components() {
             .add_component(
                 entity,
                 Inventory {
-                    items: (0..100).map(|j| format!("Item{}_{}", i, j)).collect(),
+                    items: (0..100).map(|j| format!("Item{i}_{j}")).collect(),
                 },
             )
             .unwrap();
