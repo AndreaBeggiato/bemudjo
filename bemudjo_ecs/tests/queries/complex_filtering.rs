@@ -795,9 +795,7 @@ fn test_dynamic_filtering_with_component_values() {
         let weapon = world.get_component::<Weapon>(*entity);
         let health = world.get_component::<Health>(*entity);
         let level = world.get_component::<Level>(*entity);
-        println!(
-            "entity: {entity:?}, weapon: {weapon:?}, health: {health:?}, level: {level:?}"
-        );
+        println!("entity: {entity:?}, weapon: {weapon:?}, health: {health:?}, level: {level:?}");
     }
     assert_eq!(powerful_weapons.len(), 3); // i = 4, 6, 8 (even numbers with damage >= 20)
 

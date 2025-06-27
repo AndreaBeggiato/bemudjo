@@ -1626,7 +1626,5 @@ fn test_tower_defense_scenario() {
     // May or may not have projectiles at end
 
     println!("Tower Defense Stats: {stats:?}");
-    println!(
-        "Towers: {tower_count}, Active projectiles: {projectile_count}"
-    );
+    println!("Towers: {tower_count}, Active projectiles: {projectile_count}");
 }

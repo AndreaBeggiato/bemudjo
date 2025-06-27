@@ -509,9 +509,9 @@ fn test_resource_sharing_with_entities() {
                     })
                     .unwrap();
 
-                self.execution_log.borrow_mut().push(format!(
-                    "CombatSystem: Defeated {enemies_defeated} enemies"
-                ));
+                self.execution_log
+                    .borrow_mut()
+                    .push(format!("CombatSystem: Defeated {enemies_defeated} enemies"));
             } else {
                 self.execution_log.borrow_mut().push(format!(
                     "CombatSystem: No enemies defeated (defeated={}, has_stats={})",

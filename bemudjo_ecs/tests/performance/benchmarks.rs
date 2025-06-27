@@ -83,9 +83,7 @@ where
     let duration = start.elapsed();
 
     let avg_duration = duration / iterations as u32;
-    println!(
-        "{name}: {iterations} iterations in {duration:?} (avg: {avg_duration:?})"
-    );
+    println!("{name}: {iterations} iterations in {duration:?} (avg: {avg_duration:?})");
 
     assert!(
         duration.as_millis() <= expected_max_ms as u128,
@@ -653,9 +651,7 @@ fn benchmark_scaling_characteristics() {
 
         results.push((count, creation_duration, query_duration));
 
-        println!(
-            "Entities: {count}, Creation: {creation_duration:?}, Query: {query_duration:?}"
-        );
+        println!("Entities: {count}, Creation: {creation_duration:?}, Query: {query_duration:?}");
     }
 
     // Verify scaling characteristics
