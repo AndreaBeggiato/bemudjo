@@ -179,6 +179,27 @@ scheduler.build();
 scheduler.run(&mut world);
 ```
 
+### System Dependencies
+
+You can define dependencies between systems to ensure they run in the correct order. For example, you can make sure the `MovementSystem` runs before the `CollisionSystem`.
+
+```rust
+use bemudjo_ecs::{System, SystemDependencies, World};
+
+struct CollisionSystem;
+impl System for CollisionSystem {
+    fn run(&self, world: &mut World) {
+        // ...
+    }
+}
+
+impl SystemDependencies for CollisionSystem {
+    fn dependencies(&self) -> Vec<Box<dyn System>> {
+        vec![Box::new(MovementSystem)]
+    }
+}
+```
+
 ### Performance Optimization
 
 #### Query Optimization
