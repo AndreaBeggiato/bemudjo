@@ -44,7 +44,7 @@ impl System for StatefulSystem {
         let entity_count = world.entities().count();
         self.shared_state
             .borrow_mut()
-            .push(format!("Before: {} entities", entity_count));
+            .push(format!("Before: {entity_count} entities"));
     }
 
     fn run(&self, world: &mut World) {
@@ -61,7 +61,7 @@ impl System for StatefulSystem {
         let entity_count = world.entities().count();
         self.shared_state
             .borrow_mut()
-            .push(format!("After: {} entities", entity_count));
+            .push(format!("After: {entity_count} entities"));
     }
 }
 

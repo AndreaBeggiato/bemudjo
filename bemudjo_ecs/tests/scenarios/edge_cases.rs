@@ -284,7 +284,7 @@ fn test_stress_system_execution() {
 
         // Verify world is in consistent state
         let entity_count = world.entities().count();
-        assert!(entity_count > 0, "Tick {}: No entities remaining", tick);
+        assert!(entity_count > 0, "Tick {tick}: No entities remaining");
 
         // Verify some entities have expected components
         let mut _has_large_components = false;
@@ -303,8 +303,7 @@ fn test_stress_system_execution() {
         if tick > 2 {
             assert!(
                 has_empty_components,
-                "Tick {}: No empty components found",
-                tick
+                "Tick {tick}: No empty components found"
             );
         }
     }

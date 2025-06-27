@@ -244,7 +244,7 @@ impl System for MemoryIntensiveSystem {
                         LargeData {
                             buffer: large_buffer,
                             id: i as u64,
-                            metadata: format!("Entity_{}_large_data", i),
+                            metadata: format!("Entity_{i}_large_data"),
                         },
                     )
                     .ok(); // Ignore errors if component already exists
@@ -252,7 +252,7 @@ impl System for MemoryIntensiveSystem {
 
             if i % 50 == 0 {
                 // Add large inventory components
-                let items: Vec<String> = (0..100).map(|j| format!("Item_{}_{}", i, j)).collect();
+                let items: Vec<String> = (0..100).map(|j| format!("Item_{i}_{j}")).collect();
 
                 world
                     .add_component(
@@ -748,7 +748,7 @@ fn test_memory_leak_stress() {
                     LargeData {
                         buffer: vec![i as u8; 1000],
                         id: i as u64,
-                        metadata: format!("test_data_{}", i),
+                        metadata: format!("test_data_{i}"),
                     },
                 )
                 .unwrap();

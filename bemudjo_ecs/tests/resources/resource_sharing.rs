@@ -157,7 +157,7 @@ impl System for ScoreSystem {
 
             self.execution_log
                 .borrow_mut()
-                .push(format!("ScoreSystem: Added {} score", score_bonus));
+                .push(format!("ScoreSystem: Added {score_bonus} score"));
         }
     }
 }
@@ -474,8 +474,7 @@ fn test_resource_sharing_with_entities() {
                     let max_health = health.max;
 
                     self.execution_log.borrow_mut().push(format!(
-                        "CombatSystem: Entity {:?} has health {} taking {} damage",
-                        entity, current_health, damage
+                        "CombatSystem: Entity {entity:?} has health {current_health} taking {damage} damage"
                     ));
 
                     if current_health <= damage {
@@ -483,7 +482,7 @@ fn test_resource_sharing_with_entities() {
                         enemies_defeated += 1;
                         self.execution_log
                             .borrow_mut()
-                            .push(format!("CombatSystem: Entity {:?} defeated", entity));
+                            .push(format!("CombatSystem: Entity {entity:?} defeated"));
                     } else {
                         let new_health = current_health - damage;
                         world.replace_component(
@@ -494,8 +493,7 @@ fn test_resource_sharing_with_entities() {
                             },
                         );
                         self.execution_log.borrow_mut().push(format!(
-                            "CombatSystem: Entity {:?} damaged, health now {}",
-                            entity, new_health
+                            "CombatSystem: Entity {entity:?} damaged, health now {new_health}"
                         ));
                     }
                 }
@@ -512,8 +510,7 @@ fn test_resource_sharing_with_entities() {
                     .unwrap();
 
                 self.execution_log.borrow_mut().push(format!(
-                    "CombatSystem: Defeated {} enemies",
-                    enemies_defeated
+                    "CombatSystem: Defeated {enemies_defeated} enemies"
                 ));
             } else {
                 self.execution_log.borrow_mut().push(format!(
@@ -821,7 +818,7 @@ fn test_resource_isolation_between_ticks() {
 
             self.execution_log
                 .borrow_mut()
-                .push(format!("Tick {}: State consistent", current_count));
+                .push(format!("Tick {current_count}: State consistent"));
         }
     }
 

@@ -55,7 +55,7 @@ where
     operation();
     let duration = start.elapsed();
 
-    println!("{}: {:?}", name, duration);
+    println!("{name}: {duration:?}");
     assert!(
         duration.as_millis() <= expected_max_ms as u128,
         "{} took {}ms, expected <= {}ms",
@@ -84,8 +84,7 @@ where
 
     let avg_duration = duration / iterations as u32;
     println!(
-        "{}: {} iterations in {:?} (avg: {:?})",
-        name, iterations, duration, avg_duration
+        "{name}: {iterations} iterations in {duration:?} (avg: {avg_duration:?})"
     );
 
     assert!(
@@ -655,8 +654,7 @@ fn benchmark_scaling_characteristics() {
         results.push((count, creation_duration, query_duration));
 
         println!(
-            "Entities: {}, Creation: {:?}, Query: {:?}",
-            count, creation_duration, query_duration
+            "Entities: {count}, Creation: {creation_duration:?}, Query: {query_duration:?}"
         );
     }
 
@@ -672,17 +670,13 @@ fn benchmark_scaling_characteristics() {
         // Creation should scale roughly linearly (within factor of 3 due to overhead)
         assert!(
             creation_ratio <= count_ratio * 3.0,
-            "Creation scaling too poor: {}x entities took {}x time",
-            count_ratio,
-            creation_ratio
+            "Creation scaling too poor: {count_ratio}x entities took {creation_ratio}x time"
         );
 
         // Query should scale roughly linearly (within factor of 2)
         assert!(
             query_ratio <= count_ratio * 2.0,
-            "Query scaling too poor: {}x entities took {}x time",
-            count_ratio,
-            query_ratio
+            "Query scaling too poor: {count_ratio}x entities took {query_ratio}x time"
         );
     }
 }
@@ -837,8 +831,8 @@ fn benchmark_regression_prevention() {
 
     // Log results for tracking
     println!("Regression prevention baselines:");
-    println!("  Tick duration: {:?}", tick_duration);
-    println!("  Query duration: {:?}", query_duration);
+    println!("  Tick duration: {tick_duration:?}");
+    println!("  Query duration: {query_duration:?}");
 
     // These assertions ensure we don't regress beyond acceptable performance
     assert!(tick_duration.as_millis() <= 30);

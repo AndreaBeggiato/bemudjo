@@ -86,7 +86,7 @@ fn test_entity_reuse_after_deletion() {
                 .add_component(
                     entity,
                     Tag {
-                        name: format!("Cycle{}_{}", cycle, i),
+                        name: format!("Cycle{cycle}_{i}"),
                     },
                 )
                 .unwrap();
@@ -238,7 +238,7 @@ fn test_entity_deletion_with_partial_cleanup() {
             .add_component(
                 entity,
                 Tag {
-                    name: format!("Entity{}", i),
+                    name: format!("Entity{i}"),
                 },
             )
             .unwrap();
@@ -355,8 +355,7 @@ fn test_entity_uniqueness() {
         let entity = world.spawn_entity();
         assert!(
             all_entities.insert(entity),
-            "Entity ID was not unique: {:?}",
-            entity
+            "Entity ID was not unique: {entity:?}"
         );
 
         world
@@ -381,8 +380,7 @@ fn test_entity_uniqueness() {
         let entity = world.spawn_entity();
         assert!(
             all_entities.insert(entity),
-            "New entity ID was not unique: {:?}",
-            entity
+            "New entity ID was not unique: {entity:?}"
         );
 
         world
@@ -406,7 +404,7 @@ fn test_entity_iteration_consistency() {
             .add_component(
                 entity,
                 Tag {
-                    name: format!("Entity{}", i),
+                    name: format!("Entity{i}"),
                 },
             )
             .unwrap();

@@ -677,7 +677,7 @@ fn test_complete_rpg_combat_scenario() {
         assert!(exp.current > 0 || exp.level > 1);
     }
 
-    println!("Game Stats: {:?}", stats);
+    println!("Game Stats: {stats:?}");
     println!("Final time: {:.2}s", time.elapsed);
 }
 
@@ -734,7 +734,7 @@ fn test_mmo_like_scenario() {
             .add_component(
                 player,
                 Player {
-                    name: format!("Player{}", i),
+                    name: format!("Player{i}"),
                     class: player_classes[i % player_classes.len()].to_string(),
                 },
             )
@@ -839,7 +839,7 @@ fn test_mmo_like_scenario() {
             .add_component(
                 npc,
                 Npc {
-                    name: format!("Merchant{}", i),
+                    name: format!("Merchant{i}"),
                     dialogue: "Welcome to my shop!".to_string(),
                     shop_items: vec![
                         "Health Potion".to_string(),
@@ -1273,12 +1273,12 @@ fn test_survival_game_scenario() {
     // Should have collected some items
     assert!(stats.items_collected > 0);
 
-    println!("Survival Stats: {:?}", stats);
+    println!("Survival Stats: {stats:?}");
     println!("Survival time: {:.2}s", time.elapsed);
 
     if !world.has_component::<Dead>(player) {
         let survival = world.get_component::<Survival>(player).unwrap();
-        println!("Final survival state: {:?}", survival);
+        println!("Final survival state: {survival:?}");
     }
 }
 
@@ -1625,9 +1625,8 @@ fn test_tower_defense_scenario() {
     let projectile_count = Query::<Projectile>::new().iter(&world).count();
     // May or may not have projectiles at end
 
-    println!("Tower Defense Stats: {:?}", stats);
+    println!("Tower Defense Stats: {stats:?}");
     println!(
-        "Towers: {}, Active projectiles: {}",
-        tower_count, projectile_count
+        "Towers: {tower_count}, Active projectiles: {projectile_count}"
     );
 }

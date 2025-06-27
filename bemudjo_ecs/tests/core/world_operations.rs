@@ -99,14 +99,14 @@ impl System for LoggingSystem {
         let entity_count = world.entities().count();
         self.log_entries
             .borrow_mut()
-            .push(format!("BEFORE: {} entities", entity_count));
+            .push(format!("BEFORE: {entity_count} entities"));
     }
 
     fn after_run(&self, world: &World) {
         let entity_count = world.entities().count();
         self.log_entries
             .borrow_mut()
-            .push(format!("AFTER: {} entities", entity_count));
+            .push(format!("AFTER: {entity_count} entities"));
     }
 }
 

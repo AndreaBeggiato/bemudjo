@@ -9,11 +9,11 @@ async fn main() -> io::Result<()> {
 
     loop {
         let (socket, addr) = listener.accept().await?;
-        println!("New connection from: {}", addr);
+        println!("New connection from: {addr}");
 
         tokio::spawn(async move {
             if let Err(e) = handle_client(socket).await {
-                eprintln!("Error handling client {}: {}", addr, e);
+                eprintln!("Error handling client {addr}: {e}");
             }
         });
     }
@@ -60,7 +60,7 @@ async fn handle_client(mut socket: TcpStream) -> io::Result<()> {
                     cmd if cmd.starts_with("say ") => {
                         let message = &cmd[4..];
                         writer
-                            .write_all(format!("You say: {}\r\n", message).as_bytes())
+                            .write_all(format!("You say: {message}\r\n").as_bytes())
                             .await?;
                     }
                     "" => {}
@@ -76,7 +76,7 @@ async fn handle_client(mut socket: TcpStream) -> io::Result<()> {
                 }
             }
             Err(e) => {
-                eprintln!("Error reading from client: {}", e);
+                eprintln!("Error reading from client: {e}");
                 break;
             }
         }

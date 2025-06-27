@@ -203,7 +203,7 @@ impl System for PanicRecoverySystem {
                     .unwrap();
                 self.recovery_log
                     .borrow_mut()
-                    .push(format!("Normal operation: {}", count));
+                    .push(format!("Normal operation: {count}"));
             }
         }
 
@@ -555,7 +555,7 @@ fn test_cascading_error_handling() {
                         .unwrap();
                     self.error_log
                         .borrow_mut()
-                        .push(format!("Step {}: Recovery", current_step));
+                        .push(format!("Step {current_step}: Recovery"));
                 }
             }
 
