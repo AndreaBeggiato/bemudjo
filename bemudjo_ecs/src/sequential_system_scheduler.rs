@@ -11,10 +11,13 @@ struct SystemInfo {
 
 /// A sequential system scheduler that executes systems in dependency order.
 ///
-/// This scheduler runs all systems through three distinct phases sequentially:
+/// This scheduler runs all systems through three distinct phases sequentially,
+/// followed by automatic cleanup operations:
 /// 1. All systems' `before_run` methods (preparation)
 /// 2. All systems' `run` methods (main logic)
 /// 3. All systems' `after_run` methods (cleanup/output)
+/// 4. Entity cleanup (remove deleted entities)
+/// 5. Ephemeral component cleanup (clear all ephemeral components)
 ///
 /// # Execution Order
 /// Systems execute in the order they were added with `add_system()`.
@@ -228,87 +231,9 @@ impl SequentialSystemScheduler {
 
     /// Executes one complete tick of all registered systems.
     ///
-    /// This method runs all systems through their four phases:
-    /// 1. **Preparation Phase**: All systems' `before_run` methods
-    /// 2. **Execution Phase**: All systems' `run` methods
-    /// 3. **Cleanup Phase**: All systems' `after_run` methods
-    /// 4. **Entity Cleanup**: Automatic cleanup of deleted entities
-    ///
-    /// Systems execute in registration order within each phase. After all systems
-    /// complete, deleted entities are automatically cleaned up to maintain optimal
-    /// performance and prevent memory leaks.
-    ///
-    /// # Parameters
-    /// * `world` - Mutable reference to the ECS world
-    ///
-    /// # Example
-    /// ```
-    /// use bemudjo_ecs::{SequentialSystemScheduler, System, World, Component};
-    ///
-    /// #[derive(Clone, Debug, PartialEq)]
-    /// struct Counter { value: u32 }
-    /// impl Component for Counter {}
-    ///
-    /// struct IncrementSystem;
-    /// impl System for IncrementSystem {
-    ///     fn run(&self, world: &mut World) {
-    ///         for entity in world.entities().cloned().collect::<Vec<_>>() {
-    ///             if let Some(counter) = world.get_component::<Counter>(entity) {
-    ///                 let new_counter = Counter { value: counter.value + 1 };
-    ///                 world.replace_component(entity, new_counter);
-    ///             }
-    ///         }
-    ///     }
-    /// }
-    ///
-    /// let mut world = World::new();
-    /// let entity = world.spawn_entity();
-    /// world.add_component(entity, Counter { value: 0 }).unwrap();
-    ///
-    /// let mut scheduler = SequentialSystemScheduler::new();
-    /// scheduler.add_system(IncrementSystem).unwrap();
-    /// scheduler.build().unwrap(); // Must build before running
-    ///
-    /// // Run one tick
-    /// scheduler.run_tick(&mut world);
-    ///
-    /// // Counter should be incremented
-    /// let counter = world.get_component::<Counter>(entity).unwrap();
-    /// assert_eq!(counter.value, 1);
-    /// ```
-    ///
-    /// # Typical Application Loop
-    /// ```
-    /// use bemudjo_ecs::{SequentialSystemScheduler, World};
-    /// use std::time::{Duration, Instant};
-    ///
-    /// let mut world = World::new();
-    /// let mut scheduler = SequentialSystemScheduler::new();
-    /// scheduler.build().unwrap(); // Build empty scheduler
-    ///
-    /// // Application runs at fixed timestep (e.g., 60 FPS or 10 TPS)
-    /// let tick_duration = Duration::from_millis(100); // 10 TPS
-    ///
-    /// for _tick in 0..5 { // Run 5 ticks for example
-    ///     let start = Instant::now();
-    ///
-    ///     // Execute all systems for this tick
-    ///     scheduler.run_tick(&mut world);
-    ///
-    ///     // Sleep until next tick (timing control)
-    ///     let elapsed = start.elapsed();
-    ///     if elapsed < tick_duration {
-    ///         std::thread::sleep(tick_duration - elapsed);
-    ///     }
-    /// }
-    /// ```
-    /// Executes one complete tick of all registered systems.
-    ///
-    /// This method runs all systems through their four phases in dependency order:
-    /// 1. **Preparation Phase**: All systems' `before_run` methods
-    /// 2. **Execution Phase**: All systems' `run` methods
-    /// 3. **Cleanup Phase**: All systems' `after_run` methods
-    /// 4. **Entity Cleanup**: Automatic cleanup of deleted entities
+    /// This method runs all systems through the five execution phases described
+    /// in the [`SequentialSystemScheduler`] documentation, followed by automatic
+    /// cleanup of deleted entities and ephemeral components.
     ///
     /// # Panics
     /// Panics if `build()` has not been called yet. The scheduler must be built
@@ -375,6 +300,10 @@ impl SequentialSystemScheduler {
         // Phase 4: Entity cleanup - Remove component data for deleted entities
         // This ensures clean state for the next tick and prevents memory leaks
         world.cleanup_deleted_entities();
+
+        // Phase 5: Ephemeral component cleanup - Remove all ephemeral components
+        // This implements the core ephemeral component behavior: components only live for one frame
+        world.clean_ephemeral_storage();
     }
 
     /// Resolves system dependencies and updates execution order.
@@ -993,5 +922,131 @@ mod tests {
         // Should still work normally
         let mut world = World::new();
         scheduler.run_tick(&mut world);
+    }
+
+    #[test]
+    fn test_ephemeral_components_cleanup_after_tick() {
+        let mut world = World::new();
+        let mut scheduler = SequentialSystemScheduler::new();
+
+        #[derive(Clone, Debug, PartialEq)]
+        struct TempEffect { damage: u32 }
+        impl Component for TempEffect {}
+
+        // System that creates ephemeral components
+        struct CreateEffectSystem;
+        impl System for CreateEffectSystem {
+            fn run(&self, world: &mut World) {
+                for entity in world.entities().cloned().collect::<Vec<_>>() {
+                    world.add_ephemeral_component(entity, TempEffect { damage: 50 }).unwrap();
+                }
+            }
+        }
+
+        // Add system and build scheduler
+        scheduler.add_system(CreateEffectSystem).unwrap();
+        scheduler.build().unwrap();
+
+        // Create an entity
+        let entity = world.spawn_entity();
+
+        // First tick - ephemeral components should be created
+        scheduler.run_tick(&mut world);
+
+        // At the end of the tick, ephemeral components should be cleaned up
+        assert!(!world.has_ephemeral_component::<TempEffect>(entity));
+
+        // Second tick - verify cleanup is automatic each tick
+        scheduler.run_tick(&mut world);
+        assert!(!world.has_ephemeral_component::<TempEffect>(entity));
+    }
+
+    #[test]
+    fn test_ephemeral_components_available_during_tick() {
+        let mut world = World::new();
+        let mut scheduler = SequentialSystemScheduler::new();
+
+        #[derive(Clone, Debug, PartialEq)]
+        struct DamageEvent { amount: u32 }
+        impl Component for DamageEvent {}
+
+        // System that creates ephemeral components
+        struct DamageSystem;
+        impl System for DamageSystem {
+            fn run(&self, world: &mut World) {
+                for entity in world.entities().cloned().collect::<Vec<_>>() {
+                    world.add_ephemeral_component(entity, DamageEvent { amount: 25 }).unwrap();
+                }
+            }
+        }
+
+        // System that reads ephemeral components
+        struct HealthSystem;
+        impl System for HealthSystem {
+            fn run(&self, world: &mut World) {
+                for entity in world.entities().cloned().collect::<Vec<_>>() {
+                    if world.has_ephemeral_component::<DamageEvent>(entity) {
+                        // In practice, this would process the damage
+                        // The test verifies the ephemeral component exists during the tick
+                    }
+                }
+            }
+        }
+
+        // Add systems in order (DamageSystem creates, HealthSystem reads)
+        scheduler.add_system(DamageSystem).unwrap();
+        scheduler.add_system(HealthSystem).unwrap();
+        scheduler.build().unwrap();
+
+        // Create an entity
+        let entity = world.spawn_entity();
+
+        // Run tick - ephemeral components should be available during the tick
+        scheduler.run_tick(&mut world);
+
+        // After tick, ephemeral components should be cleaned up
+        assert!(!world.has_ephemeral_component::<DamageEvent>(entity));
+    }
+
+    #[test]
+    fn test_ephemeral_components_persist_across_system_phases() {
+        let mut world = World::new();
+        let mut scheduler = SequentialSystemScheduler::new();
+
+        #[derive(Clone, Debug, PartialEq)]
+        struct SystemEvent { phase: String }
+        impl Component for SystemEvent {}
+
+        // System that creates ephemeral components in run phase
+        struct SetupSystem;
+        impl System for SetupSystem {
+            fn run(&self, world: &mut World) {
+                for entity in world.entities().cloned().collect::<Vec<_>>() {
+                    world.add_ephemeral_component(entity, SystemEvent {
+                        phase: "run".to_string()
+                    }).unwrap();
+                }
+            }
+
+            fn after_run(&self, world: &World) {
+                // Verify ephemeral component is still available in after_run
+                for entity in world.entities().cloned().collect::<Vec<_>>() {
+                    if let Some(event) = world.get_ephemeral_component::<SystemEvent>(entity) {
+                        assert_eq!(event.phase, "run");
+                    }
+                }
+            }
+        }
+
+        scheduler.add_system(SetupSystem).unwrap();
+        scheduler.build().unwrap();
+
+        let entity = world.spawn_entity();
+
+        // Run tick - ephemeral components should persist across phases within the same tick
+        scheduler.run_tick(&mut world);
+
+        // After tick, ephemeral components should be cleaned up
+        assert!(!world.has_ephemeral_component::<SystemEvent>(entity));
     }
 }

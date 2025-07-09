@@ -96,6 +96,8 @@ pub struct QueryIter<'w, T> {
     entities: std::vec::IntoIter<Entity>,
     /// Reference to the query configuration
     query: &'w Query<T>,
+    /// Whether to query ephemeral components instead of regular components
+    use_ephemeral: bool,
     /// Zero-sized type marker for the component type
     _marker: PhantomData<T>,
 }
@@ -260,6 +262,50 @@ impl<T: Component> Query<T> {
             world,
             entities: entities_with_component.into_iter(),
             query: self,
+            use_ephemeral: false,
+            _marker: PhantomData,
+        }
+    }
+
+    /// Creates an iterator over all entities that have the specified ephemeral component.
+    ///
+    /// Returns an iterator that yields `(Entity, &T)` pairs for each entity
+    /// that matches all the query criteria for ephemeral components.
+    ///
+    /// # Performance
+    /// This method uses component-first iteration with O(entities_with_ephemeral_component_T)
+    /// complexity instead of O(total_entities), providing significant performance
+    /// improvements especially for sparse ephemeral components.
+    ///
+    /// # Example
+    /// ```
+    /// use bemudjo_ecs::{Query, World, Component};
+    ///
+    /// #[derive(Clone, Debug, PartialEq)]
+    /// struct DamageEvent { amount: u32 }
+    /// impl Component for DamageEvent {}
+    ///
+    /// let mut world = World::new();
+    /// let entity = world.spawn_entity();
+    /// world.add_ephemeral_component(entity, DamageEvent { amount: 50 }).unwrap();
+    ///
+    /// let query = Query::<DamageEvent>::new();
+    /// let damage_events: Vec<_> = query.iter_ephemeral(&world)
+    ///     .map(|(entity, damage)| (entity, damage.amount))
+    ///     .collect();
+    ///
+    /// assert_eq!(damage_events.len(), 1);
+    /// assert_eq!(damage_events[0].1, 50);
+    /// ```
+    pub fn iter_ephemeral<'w>(&'w self, world: &'w World) -> QueryIter<'w, T> {
+        // Component-first iteration: Only iterate entities that have ephemeral component T
+        let entities_with_component = world.entities_with_ephemeral_component::<T>();
+
+        QueryIter {
+            world,
+            entities: entities_with_component.into_iter(),
+            query: self,
+            use_ephemeral: true,
             _marker: PhantomData,
         }
     }
@@ -357,8 +403,14 @@ impl<'w, T: Component> Iterator for QueryIter<'w, T> {
     fn next(&mut self) -> Option<Self::Item> {
         // Iterate through entities that have component T (guaranteed by component-first iteration)
         while let Some(entity) = self.entities.next() {
-            // Entity definitely has component T, so get it directly
-            if let Some(component) = self.world.get_component::<T>(entity) {
+            // Get component T based on whether we're querying ephemeral or regular components
+            let component = if self.use_ephemeral {
+                self.world.get_ephemeral_component::<T>(entity)
+            } else {
+                self.world.get_component::<T>(entity)
+            };
+
+            if let Some(component) = component {
                 // Check all required components (with filters)
                 let has_all_required = self
                     .query
@@ -718,5 +770,191 @@ mod tests {
         let results2: Vec<_> = query.iter(&world).collect();
         assert_eq!(results1.len(), 1);
         assert_eq!(results2.len(), 1);
+    }
+
+    #[test]
+    fn test_query_iter_ephemeral_basic() {
+        let mut world = World::new();
+        let entity1 = world.spawn_entity();
+        let entity2 = world.spawn_entity();
+
+        // Add ephemeral components
+        world.add_ephemeral_component(entity1, Position { x: 1.0, y: 2.0 }).unwrap();
+        world.add_ephemeral_component(entity2, Position { x: 3.0, y: 4.0 }).unwrap();
+
+        let query = Query::<Position>::new();
+        let results: Vec<_> = query.iter_ephemeral(&world).collect();
+
+        assert_eq!(results.len(), 2);
+
+        // Check that both entities are present (order may vary)
+        let entities: Vec<_> = results.iter().map(|(entity, _)| *entity).collect();
+        assert!(entities.contains(&entity1));
+        assert!(entities.contains(&entity2));
+
+        // Check that the correct positions are present
+        let positions: Vec<_> = results.iter().map(|(_, pos)| *pos).collect();
+        assert!(positions.contains(&&Position { x: 1.0, y: 2.0 }));
+        assert!(positions.contains(&&Position { x: 3.0, y: 4.0 }));
+    }
+
+    #[test]
+    fn test_query_iter_ephemeral_empty() {
+        let world = World::new();
+        let query = Query::<Position>::new();
+        let results: Vec<_> = query.iter_ephemeral(&world).collect();
+        assert_eq!(results.len(), 0);
+    }
+
+    #[test]
+    fn test_query_iter_ephemeral_vs_regular_separation() {
+        let mut world = World::new();
+        let entity1 = world.spawn_entity();
+        let entity2 = world.spawn_entity();
+
+        // Add regular component to entity1
+        world.add_component(entity1, Position { x: 10.0, y: 20.0 }).unwrap();
+
+        // Add ephemeral component to entity2
+        world.add_ephemeral_component(entity2, Position { x: 30.0, y: 40.0 }).unwrap();
+
+        let query = Query::<Position>::new();
+
+        // Regular query should only find entity1
+        let regular_results: Vec<_> = query.iter(&world).collect();
+        assert_eq!(regular_results.len(), 1);
+        assert_eq!(regular_results[0].0, entity1);
+        assert_eq!(regular_results[0].1, &Position { x: 10.0, y: 20.0 });
+
+        // Ephemeral query should only find entity2
+        let ephemeral_results: Vec<_> = query.iter_ephemeral(&world).collect();
+        assert_eq!(ephemeral_results.len(), 1);
+        assert_eq!(ephemeral_results[0].0, entity2);
+        assert_eq!(ephemeral_results[0].1, &Position { x: 30.0, y: 40.0 });
+    }
+
+    #[test]
+    fn test_query_iter_ephemeral_with_filtering() {
+        let mut world = World::new();
+        let entity1 = world.spawn_entity();
+        let entity2 = world.spawn_entity();
+        let entity3 = world.spawn_entity();
+
+        // Add ephemeral Position to all entities
+        world.add_ephemeral_component(entity1, Position { x: 1.0, y: 1.0 }).unwrap();
+        world.add_ephemeral_component(entity2, Position { x: 2.0, y: 2.0 }).unwrap();
+        world.add_ephemeral_component(entity3, Position { x: 3.0, y: 3.0 }).unwrap();
+
+        // Add regular Velocity to entity1 and entity2 only
+        world.add_component(entity1, Velocity { x: 0.1, y: 0.1 }).unwrap();
+        world.add_component(entity2, Velocity { x: 0.2, y: 0.2 }).unwrap();
+
+        // Add regular Health to entity2 only
+        world.add_component(entity2, Health { value: 100 }).unwrap();
+
+        // Query ephemeral Position with Velocity (should find entity1 and entity2)
+        let query_with_velocity = Query::<Position>::new().with::<Velocity>();
+        let results_with_velocity: Vec<_> = query_with_velocity.iter_ephemeral(&world).collect();
+        assert_eq!(results_with_velocity.len(), 2);
+
+        // Query ephemeral Position with Velocity but without Health (should find only entity1)
+        let query_without_health = Query::<Position>::new()
+            .with::<Velocity>()
+            .without::<Health>();
+        let results_without_health: Vec<_> = query_without_health.iter_ephemeral(&world).collect();
+        assert_eq!(results_without_health.len(), 1);
+        assert_eq!(results_without_health[0].0, entity1);
+    }
+
+    #[test]
+    fn test_query_iter_ephemeral_after_cleanup() {
+        let mut world = World::new();
+        let entity = world.spawn_entity();
+
+        // Add ephemeral component
+        world.add_ephemeral_component(entity, Position { x: 5.0, y: 10.0 }).unwrap();
+
+        let query = Query::<Position>::new();
+
+        // Should find the ephemeral component
+        let results_before: Vec<_> = query.iter_ephemeral(&world).collect();
+        assert_eq!(results_before.len(), 1);
+
+        // Clean ephemeral storage
+        world.clean_ephemeral_storage();
+
+        // Should not find any ephemeral components after cleanup
+        let results_after: Vec<_> = query.iter_ephemeral(&world).collect();
+        assert_eq!(results_after.len(), 0);
+    }
+
+    #[test]
+    fn test_query_iter_ephemeral_deleted_entities() {
+        let mut world = World::new();
+        let entity1 = world.spawn_entity();
+        let entity2 = world.spawn_entity();
+
+        // Add ephemeral components
+        world.add_ephemeral_component(entity1, Position { x: 1.0, y: 1.0 }).unwrap();
+        world.add_ephemeral_component(entity2, Position { x: 2.0, y: 2.0 }).unwrap();
+
+        // Delete entity1
+        world.delete_entity(entity1);
+
+        let query = Query::<Position>::new();
+        let results: Vec<_> = query.iter_ephemeral(&world).collect();
+
+        // Should only find entity2 (entity1 is deleted)
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].0, entity2);
+        assert_eq!(results[0].1, &Position { x: 2.0, y: 2.0 });
+    }
+
+    #[test]
+    fn test_query_iter_ephemeral_size_hint() {
+        let mut world = World::new();
+
+        // Create entities with ephemeral components
+        for i in 0..10 {
+            let entity = world.spawn_entity();
+            world.add_ephemeral_component(entity, Position {
+                x: i as f32,
+                y: (i * 2) as f32
+            }).unwrap();
+        }
+
+        let query = Query::<Position>::new().expect_match_rate(0.8);
+        let iter = query.iter_ephemeral(&world);
+
+        // Check size hint provides reasonable bounds
+        let (lower, upper) = iter.size_hint();
+        assert!(lower <= 10);
+        assert_eq!(upper, Some(10));
+
+        // Actually count to verify
+        let actual_count = iter.count();
+        assert_eq!(actual_count, 10);
+    }
+
+    #[test]
+    fn test_query_iter_ephemeral_same_entity_both_storages() {
+        let mut world = World::new();
+        let entity = world.spawn_entity();
+
+        // Add both regular and ephemeral Position components to same entity
+        world.add_component(entity, Position { x: 100.0, y: 200.0 }).unwrap();
+        world.add_ephemeral_component(entity, Position { x: 1.0, y: 2.0 }).unwrap();
+
+        let query = Query::<Position>::new();
+
+        // Regular query should return regular component
+        let regular_results: Vec<_> = query.iter(&world).collect();
+        assert_eq!(regular_results.len(), 1);
+        assert_eq!(regular_results[0].1, &Position { x: 100.0, y: 200.0 });
+
+        // Ephemeral query should return ephemeral component
+        let ephemeral_results: Vec<_> = query.iter_ephemeral(&world).collect();
+        assert_eq!(ephemeral_results.len(), 1);
+        assert_eq!(ephemeral_results[0].1, &Position { x: 1.0, y: 2.0 });
     }
 }

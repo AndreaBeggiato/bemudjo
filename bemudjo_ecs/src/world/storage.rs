@@ -1,17 +1,17 @@
-use std::any::TypeId;
+use std::{any::TypeId, collections::HashMap};
 
-use crate::{Component, HashMapComponentStorage};
+use crate::{AnyStorage, Component, HashMapComponentStorage};
 
 use super::World;
 
 impl World {
-    /// Gets an immutable reference to the storage for a specific component type.
-    ///
-    /// Returns `None` if no storage exists for this component type yet.
-    pub(super) fn get_storage<T: Component>(&self) -> Option<&HashMapComponentStorage<T>> {
+    /// Gets an immutable reference to a storage from the given storage map.
+    fn get_storage_from_map<T: Component>(
+        storage_map: &HashMap<TypeId, Box<dyn AnyStorage>>
+    ) -> Option<&HashMapComponentStorage<T>> {
         let type_id = TypeId::of::<T>();
 
-        self.component_storages
+        storage_map
             .get(&type_id)
             .and_then(|any_storage| {
                 any_storage
@@ -20,15 +20,14 @@ impl World {
             })
     }
 
-    /// Gets a mutable reference to the storage for a specific component type.
-    ///
-    /// Creates the storage if it doesn't exist yet.
-    pub(super) fn get_storage_mut<T: Component>(&mut self) -> &mut HashMapComponentStorage<T> {
+    /// Gets a mutable reference to a storage from the given storage map, creating if needed.
+    fn get_storage_from_map_mut<T: Component>(
+        storage_map: &mut HashMap<TypeId, Box<dyn AnyStorage>>
+    ) -> &mut HashMapComponentStorage<T> {
         let type_id = TypeId::of::<T>();
 
         // Use entry API to create storage if it doesn't exist
-        let any_storage = self
-            .component_storages
+        let any_storage = storage_map
             .entry(type_id)
             .or_insert_with(|| Box::new(HashMapComponentStorage::<T>::new()));
 
@@ -36,6 +35,34 @@ impl World {
             .as_any_mut()
             .downcast_mut::<HashMapComponentStorage<T>>()
             .expect("Failed to downcast storage for component type")
+    }
+
+    /// Gets an immutable reference to the storage for a specific component type.
+    ///
+    /// Returns `None` if no storage exists for this component type yet.
+    pub(super) fn get_storage<T: Component>(&self) -> Option<&HashMapComponentStorage<T>> {
+        Self::get_storage_from_map(&self.component_storages)
+    }
+
+    /// Gets a mutable reference to the storage for a specific component type.
+    ///
+    /// Creates the storage if it doesn't exist yet.
+    pub(super) fn get_storage_mut<T: Component>(&mut self) -> &mut HashMapComponentStorage<T> {
+        Self::get_storage_from_map_mut(&mut self.component_storages)
+    }
+
+    /// Gets an immutable reference to the ephemeral storage for a specific component type.
+    ///
+    /// Returns `None` if no ephemeral storage exists for this component type yet.
+    pub(super) fn get_ephemeral_storage<T: Component>(&self) -> Option<&HashMapComponentStorage<T>> {
+        Self::get_storage_from_map(&self.ephemeral_component_storages)
+    }
+
+    /// Gets a mutable reference to the ephemeral storage for a specific component type.
+    ///
+    /// Creates the ephemeral storage if it doesn't exist yet.
+    pub(super) fn get_ephemeral_storage_mut<T: Component>(&mut self) -> &mut HashMapComponentStorage<T> {
+        Self::get_storage_from_map_mut(&mut self.ephemeral_component_storages)
     }
 }
 
@@ -406,5 +433,114 @@ mod tests {
         let storage = world.get_storage::<Position>();
         assert!(storage.is_some());
         assert!(!storage.unwrap().contains(entity));
+    }
+
+    #[test]
+    fn test_get_ephemeral_storage_nonexistent() {
+        let world = World::new();
+
+        // Ephemeral storage for component type that was never used should return None
+        let storage = world.get_ephemeral_storage::<Position>();
+        assert!(storage.is_none());
+    }
+
+    #[test]
+    fn test_get_ephemeral_storage_mut_creates_storage() {
+        let mut world = World::new();
+
+        // First access should create the ephemeral storage
+        let storage = world.get_ephemeral_storage_mut::<Position>();
+        assert!(storage.component_type_name().contains("Position"));
+
+        // Now get_ephemeral_storage should return Some
+        let storage_ref = world.get_ephemeral_storage::<Position>();
+        assert!(storage_ref.is_some());
+    }
+
+    #[test]
+    fn test_ephemeral_and_regular_storage_are_separate() {
+        let mut world = World::new();
+        let entity = world.spawn_entity();
+
+        // Add regular component
+        world
+            .add_component(entity, Position { x: 1.0, y: 2.0 })
+            .unwrap();
+
+        // Regular storage should contain the entity
+        assert!(world.get_storage::<Position>().is_some());
+        assert!(world.get_storage::<Position>().unwrap().contains(entity));
+
+        // Get ephemeral storage (should be empty initially)
+        assert!(world.get_ephemeral_storage::<Position>().is_none());
+
+        // Create ephemeral storage and add component
+        {
+            let ephemeral_storage = world.get_ephemeral_storage_mut::<Position>();
+            assert!(!ephemeral_storage.contains(entity));
+            ephemeral_storage.insert(entity, Position { x: 5.0, y: 6.0 }).unwrap();
+        }
+
+        // Now both storages should contain the entity but with different values
+        let regular_pos = world.get_component::<Position>(entity).unwrap();
+        let ephemeral_pos = world.get_ephemeral_storage::<Position>().unwrap().get(entity).unwrap();
+
+        assert_eq!(regular_pos, &Position { x: 1.0, y: 2.0 });
+        assert_eq!(ephemeral_pos, &Position { x: 5.0, y: 6.0 });
+    }
+
+    #[test]
+    fn test_multiple_ephemeral_component_types() {
+        let mut world = World::new();
+        let entity = world.spawn_entity();
+
+        // Create ephemeral storages for different component types
+        let pos_storage = world.get_ephemeral_storage_mut::<Position>();
+        pos_storage.insert(entity, Position { x: 1.0, y: 2.0 }).unwrap();
+
+        let health_storage = world.get_ephemeral_storage_mut::<Health>();
+        health_storage.insert(entity, Health { value: 100 }).unwrap();
+
+        let vel_storage = world.get_ephemeral_storage_mut::<Velocity>();
+        vel_storage.insert(entity, Velocity { dx: 0.5, dy: -0.3 }).unwrap();
+
+        // Each ephemeral component type should have its own storage
+        let pos_storage = world.get_ephemeral_storage::<Position>();
+        let health_storage = world.get_ephemeral_storage::<Health>();
+        let vel_storage = world.get_ephemeral_storage::<Velocity>();
+
+        assert!(pos_storage.is_some());
+        assert!(health_storage.is_some());
+        assert!(vel_storage.is_some());
+
+        // Each storage should contain the entity
+        assert!(pos_storage.unwrap().contains(entity));
+        assert!(health_storage.unwrap().contains(entity));
+        assert!(vel_storage.unwrap().contains(entity));
+    }
+
+    #[test]
+    fn test_ephemeral_storage_independent_entity_lifecycle() {
+        let mut world = World::new();
+        let entity1 = world.spawn_entity();
+        let entity2 = world.spawn_entity();
+
+        // Add ephemeral components to both entities
+        let storage = world.get_ephemeral_storage_mut::<Position>();
+        storage.insert(entity1, Position { x: 1.0, y: 1.0 }).unwrap();
+        storage.insert(entity2, Position { x: 2.0, y: 2.0 }).unwrap();
+
+        // Both entities should be in ephemeral storage
+        let storage = world.get_ephemeral_storage::<Position>().unwrap();
+        assert!(storage.contains(entity1));
+        assert!(storage.contains(entity2));
+
+        // Delete entity1 from world (this doesn't automatically clean ephemeral storage)
+        world.delete_entity(entity1);
+
+        // Ephemeral storage still contains both entities (cleanup is manual or frame-based)
+        let storage = world.get_ephemeral_storage::<Position>().unwrap();
+        assert!(storage.contains(entity1)); // Still there until explicit cleanup
+        assert!(storage.contains(entity2));
     }
 }

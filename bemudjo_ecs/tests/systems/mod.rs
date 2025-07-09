@@ -8,5 +8,6 @@
 
 pub mod scheduler_integration;
 pub mod system_dependencies;
+pub mod ephemeral_component_integration;
 pub mod system_error_handling;
 pub mod system_patterns;

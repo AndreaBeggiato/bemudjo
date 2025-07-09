@@ -8,5 +8,6 @@
 
 pub mod component_lifecycle;
 pub mod entity_lifecycle;
+pub mod ephemeral_component_integration;
 pub mod integration_test;
 pub mod world_operations;

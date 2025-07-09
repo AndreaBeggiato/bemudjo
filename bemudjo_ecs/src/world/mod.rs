@@ -7,6 +7,7 @@ use crate::{AnyStorage, Entity};
 
 mod components;
 mod entities;
+mod ephemeral_component;
 mod resources;
 mod storage;
 
@@ -37,6 +38,7 @@ pub struct World {
     entities: HashSet<Entity>,
     soft_deleted_entities: HashSet<Entity>,
     component_storages: HashMap<TypeId, Box<dyn AnyStorage>>,
+    ephemeral_component_storages: HashMap<TypeId, Box<dyn AnyStorage>>,
 }
 
 impl World {
@@ -55,6 +57,7 @@ impl World {
             entities: HashSet::new(),
             soft_deleted_entities: HashSet::new(),
             component_storages: HashMap::new(),
+            ephemeral_component_storages: HashMap::new(),
         }
     }
 }

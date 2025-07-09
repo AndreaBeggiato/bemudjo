@@ -7,6 +7,7 @@ A fast and flexible Entity Component System (ECS) library built in Rust, designe
 ## 🚀 Features
 
 - **Type-safe Components**: Leverage Rust's type system for safe component management
+- **Ephemeral Components**: Revolutionary event system replacement using temporary components
 - **Flexible Queries**: Powerful query system with filtering and optimization hints
 - **System Scheduling**: Built-in system scheduler for organized game logic execution
 - **Memory Efficient**: Optimized storage with deferred cleanup and batch operations
@@ -154,6 +155,112 @@ for (entity, health) in combat_entities.iter(&world) {
 }
 ```
 
+### Ephemeral Components - Event System Replacement
+
+Bemudjo ECS includes **ephemeral components** - a superior alternative to traditional event systems for inter-system communication. Ephemeral components are temporary, frame-lifetime components that exist only for the duration of a single tick and are automatically cleaned up by the scheduler.
+
+#### Why Ephemeral Components?
+
+Traditional event systems have several drawbacks:
+- **Complex lifecycle management**: Events need to be created, queued, dispatched, and cleaned up manually
+- **Type safety issues**: Event dispatching often uses dynamic typing or string-based event names
+- **Performance overhead**: Event queues and dispatchers add indirection and allocation costs
+- **Temporal coupling**: Systems must coordinate on when events are processed and cleared
+
+Ephemeral components solve these problems by leveraging the existing ECS infrastructure:
+
+```rust
+// Define ephemeral components just like regular components
+#[derive(Clone, Debug, PartialEq)]
+struct DamageEvent {
+    amount: u32,
+    source: String,
+}
+impl Component for DamageEvent {}
+
+#[derive(Clone, Debug, PartialEq)]
+struct MovementEvent {
+    dx: f32,
+    dy: f32,
+}
+impl Component for MovementEvent {}
+
+// Systems can create ephemeral components for communication
+struct CombatSystem;
+impl System for CombatSystem {
+    fn run(&self, world: &mut World) {
+        // Detect combat and create damage events
+        for (entity, position) in Query::<Position>::new().iter(world) {
+            if position.x > 50.0 { // In combat zone
+                world.add_ephemeral_component(entity, DamageEvent {
+                    amount: 10,
+                    source: "combat".to_string(),
+                }).ok();
+            }
+        }
+    }
+}
+
+struct HealthSystem;
+impl System for HealthSystem {
+    fn run(&self, world: &mut World) {
+        // Process damage events
+        for entity in world.entities().cloned().collect::<Vec<_>>() {
+            if let Some(damage) = world.get_ephemeral_component::<DamageEvent>(entity) {
+                if let Some(health) = world.get_component::<Health>(entity) {
+                    let new_health = health.current.saturating_sub(damage.amount);
+                    world.replace_component(entity, Health {
+                        current: new_health,
+                        max: health.max,
+                    });
+                }
+            }
+        }
+    }
+}
+```
+
+#### Ephemeral Component Lifecycle
+
+1. **Creation**: Systems add ephemeral components during any system phase (`before_run`, `run`, `after_run`)
+2. **Access**: Ephemeral components persist across all system phases within the same tick
+3. **Querying**: Use special ephemeral queries to iterate over entities with ephemeral components
+4. **Automatic Cleanup**: The scheduler automatically removes all ephemeral components at the end of each tick
+
+```rust
+// Query ephemeral components specifically
+let damage_query = Query::<DamageEvent>::new();
+for (entity, damage_event) in damage_query.iter_ephemeral(&world) {
+    println!("Entity took {} damage from {}", damage_event.amount, damage_event.source);
+}
+
+// Check if an entity has an ephemeral component
+if world.has_ephemeral_component::<MovementEvent>(entity) {
+    let movement = world.get_ephemeral_component::<MovementEvent>(entity).unwrap();
+    // Process movement...
+}
+```
+
+#### Benefits of Ephemeral Components
+
+- **Type Safety**: Full compile-time type checking, no runtime type errors
+- **Performance**: Zero-allocation queries, direct component access, no event queue overhead
+- **Simplicity**: No manual lifecycle management, automatic cleanup
+- **ECS Native**: Uses the same patterns as regular components, familiar API
+- **Debugging**: Easy to inspect in debuggers, clear data ownership
+- **Flexibility**: Can attach multiple ephemeral component types to the same entity
+
+#### Common Use Cases
+
+- **Damage/Healing Events**: Health modifications from various sources
+- **Input Events**: Player actions that need to be processed by multiple systems
+- **Collision Events**: Physics collision data that multiple systems need to react to
+- **Animation Triggers**: Start/stop animation events
+- **Audio Events**: Sound effect triggers
+- **UI Events**: Interface state changes
+
+The scheduler automatically handles cleanup, so ephemeral components never leak between frames, providing a clean and efficient event-like system that's fully integrated with the ECS architecture.
+
 ## 🔧 Advanced Usage
 
 ### System Scheduling
@@ -296,6 +403,7 @@ cargo test
 
 The library includes comprehensive tests covering:
 - Core ECS functionality
+- Ephemeral component lifecycle and integration
 - Query system performance
 - System execution patterns
 - Edge cases and error handling

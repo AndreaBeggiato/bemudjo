@@ -77,6 +77,30 @@ impl World {
             .unwrap_or_default()
     }
 
+    /// Gets all entities that have a specific ephemeral component type.
+    ///
+    /// Returns only active entities (excludes soft-deleted entities) that have
+    /// the specified ephemeral component type. This enables efficient iteration over just
+    /// entities that have the ephemeral component, providing significant performance improvements.
+    ///
+    /// # Performance
+    /// This method has O(entities_with_ephemeral_component_T) complexity instead of O(total_entities),
+    /// which can be 10-100x faster for sparse ephemeral components.
+    ///
+    /// # Returns
+    /// A vector of entities that have ephemeral component type T. Returns empty vector if no
+    /// entities have this ephemeral component type or if the ephemeral component storage doesn't exist.
+    pub(crate) fn entities_with_ephemeral_component<T: Component>(&self) -> Vec<crate::Entity> {
+        self.get_ephemeral_storage::<T>()
+            .map(|storage| {
+                storage
+                    .entities()
+                    .filter(|&entity| self.is_entity_active(entity))
+                    .collect()
+            })
+            .unwrap_or_default()
+    }
+
     /// Deletes an entity from the world.
     ///
     /// The entity will no longer be accessible for component operations, but actual
