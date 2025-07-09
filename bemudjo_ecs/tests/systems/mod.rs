@@ -6,6 +6,7 @@
 //! - Error handling and recovery
 //! - System execution patterns
 
+pub mod ephemeral_component_integration;
 pub mod scheduler_integration;
 pub mod system_dependencies;
 pub mod system_error_handling;
