@@ -779,8 +779,12 @@ mod tests {
         let entity2 = world.spawn_entity();
 
         // Add ephemeral components
-        world.add_ephemeral_component(entity1, Position { x: 1.0, y: 2.0 }).unwrap();
-        world.add_ephemeral_component(entity2, Position { x: 3.0, y: 4.0 }).unwrap();
+        world
+            .add_ephemeral_component(entity1, Position { x: 1.0, y: 2.0 })
+            .unwrap();
+        world
+            .add_ephemeral_component(entity2, Position { x: 3.0, y: 4.0 })
+            .unwrap();
 
         let query = Query::<Position>::new();
         let results: Vec<_> = query.iter_ephemeral(&world).collect();
@@ -813,10 +817,14 @@ mod tests {
         let entity2 = world.spawn_entity();
 
         // Add regular component to entity1
-        world.add_component(entity1, Position { x: 10.0, y: 20.0 }).unwrap();
+        world
+            .add_component(entity1, Position { x: 10.0, y: 20.0 })
+            .unwrap();
 
         // Add ephemeral component to entity2
-        world.add_ephemeral_component(entity2, Position { x: 30.0, y: 40.0 }).unwrap();
+        world
+            .add_ephemeral_component(entity2, Position { x: 30.0, y: 40.0 })
+            .unwrap();
 
         let query = Query::<Position>::new();
 
@@ -841,13 +849,23 @@ mod tests {
         let entity3 = world.spawn_entity();
 
         // Add ephemeral Position to all entities
-        world.add_ephemeral_component(entity1, Position { x: 1.0, y: 1.0 }).unwrap();
-        world.add_ephemeral_component(entity2, Position { x: 2.0, y: 2.0 }).unwrap();
-        world.add_ephemeral_component(entity3, Position { x: 3.0, y: 3.0 }).unwrap();
+        world
+            .add_ephemeral_component(entity1, Position { x: 1.0, y: 1.0 })
+            .unwrap();
+        world
+            .add_ephemeral_component(entity2, Position { x: 2.0, y: 2.0 })
+            .unwrap();
+        world
+            .add_ephemeral_component(entity3, Position { x: 3.0, y: 3.0 })
+            .unwrap();
 
         // Add regular Velocity to entity1 and entity2 only
-        world.add_component(entity1, Velocity { x: 0.1, y: 0.1 }).unwrap();
-        world.add_component(entity2, Velocity { x: 0.2, y: 0.2 }).unwrap();
+        world
+            .add_component(entity1, Velocity { x: 0.1, y: 0.1 })
+            .unwrap();
+        world
+            .add_component(entity2, Velocity { x: 0.2, y: 0.2 })
+            .unwrap();
 
         // Add regular Health to entity2 only
         world.add_component(entity2, Health { value: 100 }).unwrap();
@@ -872,7 +890,9 @@ mod tests {
         let entity = world.spawn_entity();
 
         // Add ephemeral component
-        world.add_ephemeral_component(entity, Position { x: 5.0, y: 10.0 }).unwrap();
+        world
+            .add_ephemeral_component(entity, Position { x: 5.0, y: 10.0 })
+            .unwrap();
 
         let query = Query::<Position>::new();
 
@@ -895,8 +915,12 @@ mod tests {
         let entity2 = world.spawn_entity();
 
         // Add ephemeral components
-        world.add_ephemeral_component(entity1, Position { x: 1.0, y: 1.0 }).unwrap();
-        world.add_ephemeral_component(entity2, Position { x: 2.0, y: 2.0 }).unwrap();
+        world
+            .add_ephemeral_component(entity1, Position { x: 1.0, y: 1.0 })
+            .unwrap();
+        world
+            .add_ephemeral_component(entity2, Position { x: 2.0, y: 2.0 })
+            .unwrap();
 
         // Delete entity1
         world.delete_entity(entity1);
@@ -917,10 +941,15 @@ mod tests {
         // Create entities with ephemeral components
         for i in 0..10 {
             let entity = world.spawn_entity();
-            world.add_ephemeral_component(entity, Position {
-                x: i as f32,
-                y: (i * 2) as f32
-            }).unwrap();
+            world
+                .add_ephemeral_component(
+                    entity,
+                    Position {
+                        x: i as f32,
+                        y: (i * 2) as f32,
+                    },
+                )
+                .unwrap();
         }
 
         let query = Query::<Position>::new().expect_match_rate(0.8);
@@ -942,8 +971,12 @@ mod tests {
         let entity = world.spawn_entity();
 
         // Add both regular and ephemeral Position components to same entity
-        world.add_component(entity, Position { x: 100.0, y: 200.0 }).unwrap();
-        world.add_ephemeral_component(entity, Position { x: 1.0, y: 2.0 }).unwrap();
+        world
+            .add_component(entity, Position { x: 100.0, y: 200.0 })
+            .unwrap();
+        world
+            .add_ephemeral_component(entity, Position { x: 1.0, y: 2.0 })
+            .unwrap();
 
         let query = Query::<Position>::new();
 

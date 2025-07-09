@@ -246,7 +246,9 @@ mod tests {
             )
             .unwrap();
 
-        let first_intent = world.get_ephemeral_component::<MovementIntent>(entity).unwrap();
+        let first_intent = world
+            .get_ephemeral_component::<MovementIntent>(entity)
+            .unwrap();
         assert_eq!(first_intent.direction, 0.0);
 
         // Add second ephemeral component (should replace the first)
@@ -260,7 +262,9 @@ mod tests {
             )
             .unwrap();
 
-        let second_intent = world.get_ephemeral_component::<MovementIntent>(entity).unwrap();
+        let second_intent = world
+            .get_ephemeral_component::<MovementIntent>(entity)
+            .unwrap();
         assert_eq!(second_intent.direction, 90.0);
         assert_eq!(second_intent.speed, 2.0);
     }
@@ -271,7 +275,10 @@ mod tests {
         let entity = world.spawn_entity();
 
         // Initially no ephemeral component
-        assert_eq!(world.get_ephemeral_component::<MovementIntent>(entity), None);
+        assert_eq!(
+            world.get_ephemeral_component::<MovementIntent>(entity),
+            None
+        );
 
         // Add ephemeral component
         world
@@ -284,7 +291,9 @@ mod tests {
             )
             .unwrap();
 
-        let intent = world.get_ephemeral_component::<MovementIntent>(entity).unwrap();
+        let intent = world
+            .get_ephemeral_component::<MovementIntent>(entity)
+            .unwrap();
         assert_eq!(intent.direction, 45.0);
         assert_eq!(intent.speed, 3.0);
     }
@@ -370,10 +379,15 @@ mod tests {
 
         // Add regular component
         #[derive(Debug, Clone, PartialEq)]
-        struct Position { x: f32, y: f32 }
+        struct Position {
+            x: f32,
+            y: f32,
+        }
         impl Component for Position {}
 
-        world.add_component(entity, Position { x: 10.0, y: 20.0 }).unwrap();
+        world
+            .add_component(entity, Position { x: 10.0, y: 20.0 })
+            .unwrap();
 
         // Add ephemeral component with same type
         world
@@ -418,7 +432,10 @@ mod tests {
 
         // Should not be able to access ephemeral component of deleted entity
         assert!(!world.has_ephemeral_component::<MovementIntent>(entity));
-        assert_eq!(world.get_ephemeral_component::<MovementIntent>(entity), None);
+        assert_eq!(
+            world.get_ephemeral_component::<MovementIntent>(entity),
+            None
+        );
 
         // Should not be able to add ephemeral component to deleted entity
         let result = world.add_ephemeral_component(

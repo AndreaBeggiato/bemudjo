@@ -40,15 +40,26 @@ fn test_ephemeral_components_independent_of_regular_components() {
     let entity1 = world.spawn_entity();
     let entity2 = world.spawn_entity();
 
-    world.add_component(entity1, Position { x: 10.0, y: 20.0 }).unwrap();
-    world.add_component(entity2, Position { x: 30.0, y: 40.0 }).unwrap();
+    world
+        .add_component(entity1, Position { x: 10.0, y: 20.0 })
+        .unwrap();
+    world
+        .add_component(entity2, Position { x: 30.0, y: 40.0 })
+        .unwrap();
 
     // Add ephemeral components
-    world.add_ephemeral_component(entity1, DamageEvent {
-        amount: 50,
-        source: "sword".to_string()
-    }).unwrap();
-    world.add_ephemeral_component(entity2, HealEvent { amount: 25 }).unwrap();
+    world
+        .add_ephemeral_component(
+            entity1,
+            DamageEvent {
+                amount: 50,
+                source: "sword".to_string(),
+            },
+        )
+        .unwrap();
+    world
+        .add_ephemeral_component(entity2, HealEvent { amount: 25 })
+        .unwrap();
 
     // Verify regular components are unaffected
     assert_eq!(world.get_component::<Position>(entity1).unwrap().x, 10.0);
@@ -82,19 +93,37 @@ fn test_ephemeral_components_with_entity_lifecycle() {
     let entity3 = world.spawn_entity();
 
     // Add regular and ephemeral components
-    world.add_component(entity1, Position { x: 1.0, y: 1.0 }).unwrap();
-    world.add_component(entity2, Position { x: 2.0, y: 2.0 }).unwrap();
-    world.add_component(entity3, Position { x: 3.0, y: 3.0 }).unwrap();
+    world
+        .add_component(entity1, Position { x: 1.0, y: 1.0 })
+        .unwrap();
+    world
+        .add_component(entity2, Position { x: 2.0, y: 2.0 })
+        .unwrap();
+    world
+        .add_component(entity3, Position { x: 3.0, y: 3.0 })
+        .unwrap();
 
-    world.add_ephemeral_component(entity1, DamageEvent {
-        amount: 10,
-        source: "fire".to_string()
-    }).unwrap();
-    world.add_ephemeral_component(entity2, DamageEvent {
-        amount: 20,
-        source: "ice".to_string()
-    }).unwrap();
-    world.add_ephemeral_component(entity3, HealEvent { amount: 15 }).unwrap();
+    world
+        .add_ephemeral_component(
+            entity1,
+            DamageEvent {
+                amount: 10,
+                source: "fire".to_string(),
+            },
+        )
+        .unwrap();
+    world
+        .add_ephemeral_component(
+            entity2,
+            DamageEvent {
+                amount: 20,
+                source: "ice".to_string(),
+            },
+        )
+        .unwrap();
+    world
+        .add_ephemeral_component(entity3, HealEvent { amount: 15 })
+        .unwrap();
 
     // Delete entity2
     world.delete_entity(entity2);
@@ -132,12 +161,21 @@ fn test_multiple_ephemeral_component_types_per_entity() {
     let entity = world.spawn_entity();
 
     // Add multiple types of ephemeral components to the same entity
-    world.add_ephemeral_component(entity, DamageEvent {
-        amount: 30,
-        source: "lightning".to_string()
-    }).unwrap();
-    world.add_ephemeral_component(entity, HealEvent { amount: 10 }).unwrap();
-    world.add_ephemeral_component(entity, CollisionEvent { other_entity: 999 }).unwrap();
+    world
+        .add_ephemeral_component(
+            entity,
+            DamageEvent {
+                amount: 30,
+                source: "lightning".to_string(),
+            },
+        )
+        .unwrap();
+    world
+        .add_ephemeral_component(entity, HealEvent { amount: 10 })
+        .unwrap();
+    world
+        .add_ephemeral_component(entity, CollisionEvent { other_entity: 999 })
+        .unwrap();
 
     // All should exist
     assert!(world.has_ephemeral_component::<DamageEvent>(entity));
@@ -145,14 +183,18 @@ fn test_multiple_ephemeral_component_types_per_entity() {
     assert!(world.has_ephemeral_component::<CollisionEvent>(entity));
 
     // Verify we can get them
-    let damage = world.get_ephemeral_component::<DamageEvent>(entity).unwrap();
+    let damage = world
+        .get_ephemeral_component::<DamageEvent>(entity)
+        .unwrap();
     assert_eq!(damage.amount, 30);
     assert_eq!(damage.source, "lightning");
 
     let heal = world.get_ephemeral_component::<HealEvent>(entity).unwrap();
     assert_eq!(heal.amount, 10);
 
-    let collision = world.get_ephemeral_component::<CollisionEvent>(entity).unwrap();
+    let collision = world
+        .get_ephemeral_component::<CollisionEvent>(entity)
+        .unwrap();
     assert_eq!(collision.other_entity, 999);
 
     // Clean storage
@@ -171,24 +213,38 @@ fn test_ephemeral_component_replacement_behavior() {
     let entity = world.spawn_entity();
 
     // Add an ephemeral component
-    world.add_ephemeral_component(entity, DamageEvent {
-        amount: 10,
-        source: "sword".to_string()
-    }).unwrap();
+    world
+        .add_ephemeral_component(
+            entity,
+            DamageEvent {
+                amount: 10,
+                source: "sword".to_string(),
+            },
+        )
+        .unwrap();
 
     // Verify it exists
-    let damage1 = world.get_ephemeral_component::<DamageEvent>(entity).unwrap();
+    let damage1 = world
+        .get_ephemeral_component::<DamageEvent>(entity)
+        .unwrap();
     assert_eq!(damage1.amount, 10);
     assert_eq!(damage1.source, "sword");
 
     // Replace with a new one
-    world.add_ephemeral_component(entity, DamageEvent {
-        amount: 25,
-        source: "magic".to_string()
-    }).unwrap();
+    world
+        .add_ephemeral_component(
+            entity,
+            DamageEvent {
+                amount: 25,
+                source: "magic".to_string(),
+            },
+        )
+        .unwrap();
 
     // Should be replaced
-    let damage2 = world.get_ephemeral_component::<DamageEvent>(entity).unwrap();
+    let damage2 = world
+        .get_ephemeral_component::<DamageEvent>(entity)
+        .unwrap();
     assert_eq!(damage2.amount, 25);
     assert_eq!(damage2.source, "magic");
 
@@ -207,21 +263,34 @@ fn test_ephemeral_components_large_scale_operations() {
     let mut entities = Vec::new();
     for i in 0..100 {
         let entity = world.spawn_entity();
-        world.add_component(entity, Position { x: i as f32, y: i as f32 }).unwrap();
+        world
+            .add_component(
+                entity,
+                Position {
+                    x: i as f32,
+                    y: i as f32,
+                },
+            )
+            .unwrap();
         entities.push(entity);
     }
 
     // Add ephemeral components to every other entity
     for (i, &entity) in entities.iter().enumerate() {
         if i % 2 == 0 {
-            world.add_ephemeral_component(entity, DamageEvent {
-                amount: i as u32,
-                source: format!("source_{}", i)
-            }).unwrap();
+            world
+                .add_ephemeral_component(
+                    entity,
+                    DamageEvent {
+                        amount: i as u32,
+                        source: format!("source_{}", i),
+                    },
+                )
+                .unwrap();
         } else {
-            world.add_ephemeral_component(entity, HealEvent {
-                amount: i as u32
-            }).unwrap();
+            world
+                .add_ephemeral_component(entity, HealEvent { amount: i as u32 })
+                .unwrap();
         }
     }
 
@@ -231,7 +300,9 @@ fn test_ephemeral_components_large_scale_operations() {
             assert!(world.has_ephemeral_component::<DamageEvent>(entity));
             assert!(!world.has_ephemeral_component::<HealEvent>(entity));
 
-            let damage = world.get_ephemeral_component::<DamageEvent>(entity).unwrap();
+            let damage = world
+                .get_ephemeral_component::<DamageEvent>(entity)
+                .unwrap();
             assert_eq!(damage.amount, i as u32);
         } else {
             assert!(world.has_ephemeral_component::<HealEvent>(entity));
@@ -270,20 +341,27 @@ fn test_ephemeral_components_error_conditions() {
     world.cleanup_deleted_entities();
 
     // Adding to nonexistent entity should fail
-    let result = world.add_ephemeral_component(nonexistent_entity, DamageEvent {
-        amount: 10,
-        source: "test".to_string()
-    });
+    let result = world.add_ephemeral_component(
+        nonexistent_entity,
+        DamageEvent {
+            amount: 10,
+            source: "test".to_string(),
+        },
+    );
     assert!(result.is_err());
 
     // Getting from nonexistent entity should return None
-    assert!(world.get_ephemeral_component::<DamageEvent>(nonexistent_entity).is_none());
+    assert!(world
+        .get_ephemeral_component::<DamageEvent>(nonexistent_entity)
+        .is_none());
 
     // Has ephemeral component on nonexistent entity should return false
     assert!(!world.has_ephemeral_component::<DamageEvent>(nonexistent_entity));
 
     // Getting nonexistent ephemeral component should return None
-    assert!(world.get_ephemeral_component::<DamageEvent>(entity).is_none());
+    assert!(world
+        .get_ephemeral_component::<DamageEvent>(entity)
+        .is_none());
 
     // Has nonexistent ephemeral component should return false
     assert!(!world.has_ephemeral_component::<DamageEvent>(entity));

@@ -7,22 +7,20 @@ use super::World;
 impl World {
     /// Gets an immutable reference to a storage from the given storage map.
     fn get_storage_from_map<T: Component>(
-        storage_map: &HashMap<TypeId, Box<dyn AnyStorage>>
+        storage_map: &HashMap<TypeId, Box<dyn AnyStorage>>,
     ) -> Option<&HashMapComponentStorage<T>> {
         let type_id = TypeId::of::<T>();
 
-        storage_map
-            .get(&type_id)
-            .and_then(|any_storage| {
-                any_storage
-                    .as_any()
-                    .downcast_ref::<HashMapComponentStorage<T>>()
-            })
+        storage_map.get(&type_id).and_then(|any_storage| {
+            any_storage
+                .as_any()
+                .downcast_ref::<HashMapComponentStorage<T>>()
+        })
     }
 
     /// Gets a mutable reference to a storage from the given storage map, creating if needed.
     fn get_storage_from_map_mut<T: Component>(
-        storage_map: &mut HashMap<TypeId, Box<dyn AnyStorage>>
+        storage_map: &mut HashMap<TypeId, Box<dyn AnyStorage>>,
     ) -> &mut HashMapComponentStorage<T> {
         let type_id = TypeId::of::<T>();
 
@@ -54,14 +52,18 @@ impl World {
     /// Gets an immutable reference to the ephemeral storage for a specific component type.
     ///
     /// Returns `None` if no ephemeral storage exists for this component type yet.
-    pub(super) fn get_ephemeral_storage<T: Component>(&self) -> Option<&HashMapComponentStorage<T>> {
+    pub(super) fn get_ephemeral_storage<T: Component>(
+        &self,
+    ) -> Option<&HashMapComponentStorage<T>> {
         Self::get_storage_from_map(&self.ephemeral_component_storages)
     }
 
     /// Gets a mutable reference to the ephemeral storage for a specific component type.
     ///
     /// Creates the ephemeral storage if it doesn't exist yet.
-    pub(super) fn get_ephemeral_storage_mut<T: Component>(&mut self) -> &mut HashMapComponentStorage<T> {
+    pub(super) fn get_ephemeral_storage_mut<T: Component>(
+        &mut self,
+    ) -> &mut HashMapComponentStorage<T> {
         Self::get_storage_from_map_mut(&mut self.ephemeral_component_storages)
     }
 }
@@ -478,12 +480,18 @@ mod tests {
         {
             let ephemeral_storage = world.get_ephemeral_storage_mut::<Position>();
             assert!(!ephemeral_storage.contains(entity));
-            ephemeral_storage.insert(entity, Position { x: 5.0, y: 6.0 }).unwrap();
+            ephemeral_storage
+                .insert(entity, Position { x: 5.0, y: 6.0 })
+                .unwrap();
         }
 
         // Now both storages should contain the entity but with different values
         let regular_pos = world.get_component::<Position>(entity).unwrap();
-        let ephemeral_pos = world.get_ephemeral_storage::<Position>().unwrap().get(entity).unwrap();
+        let ephemeral_pos = world
+            .get_ephemeral_storage::<Position>()
+            .unwrap()
+            .get(entity)
+            .unwrap();
 
         assert_eq!(regular_pos, &Position { x: 1.0, y: 2.0 });
         assert_eq!(ephemeral_pos, &Position { x: 5.0, y: 6.0 });
@@ -496,13 +504,19 @@ mod tests {
 
         // Create ephemeral storages for different component types
         let pos_storage = world.get_ephemeral_storage_mut::<Position>();
-        pos_storage.insert(entity, Position { x: 1.0, y: 2.0 }).unwrap();
+        pos_storage
+            .insert(entity, Position { x: 1.0, y: 2.0 })
+            .unwrap();
 
         let health_storage = world.get_ephemeral_storage_mut::<Health>();
-        health_storage.insert(entity, Health { value: 100 }).unwrap();
+        health_storage
+            .insert(entity, Health { value: 100 })
+            .unwrap();
 
         let vel_storage = world.get_ephemeral_storage_mut::<Velocity>();
-        vel_storage.insert(entity, Velocity { dx: 0.5, dy: -0.3 }).unwrap();
+        vel_storage
+            .insert(entity, Velocity { dx: 0.5, dy: -0.3 })
+            .unwrap();
 
         // Each ephemeral component type should have its own storage
         let pos_storage = world.get_ephemeral_storage::<Position>();
@@ -527,8 +541,12 @@ mod tests {
 
         // Add ephemeral components to both entities
         let storage = world.get_ephemeral_storage_mut::<Position>();
-        storage.insert(entity1, Position { x: 1.0, y: 1.0 }).unwrap();
-        storage.insert(entity2, Position { x: 2.0, y: 2.0 }).unwrap();
+        storage
+            .insert(entity1, Position { x: 1.0, y: 1.0 })
+            .unwrap();
+        storage
+            .insert(entity2, Position { x: 2.0, y: 2.0 })
+            .unwrap();
 
         // Both entities should be in ephemeral storage
         let storage = world.get_ephemeral_storage::<Position>().unwrap();

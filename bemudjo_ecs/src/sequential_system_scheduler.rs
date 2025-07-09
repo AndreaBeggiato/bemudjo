@@ -930,7 +930,9 @@ mod tests {
         let mut scheduler = SequentialSystemScheduler::new();
 
         #[derive(Clone, Debug, PartialEq)]
-        struct TempEffect { damage: u32 }
+        struct TempEffect {
+            damage: u32,
+        }
         impl Component for TempEffect {}
 
         // System that creates ephemeral components
@@ -938,7 +940,9 @@ mod tests {
         impl System for CreateEffectSystem {
             fn run(&self, world: &mut World) {
                 for entity in world.entities().cloned().collect::<Vec<_>>() {
-                    world.add_ephemeral_component(entity, TempEffect { damage: 50 }).unwrap();
+                    world
+                        .add_ephemeral_component(entity, TempEffect { damage: 50 })
+                        .unwrap();
                 }
             }
         }
@@ -967,7 +971,9 @@ mod tests {
         let mut scheduler = SequentialSystemScheduler::new();
 
         #[derive(Clone, Debug, PartialEq)]
-        struct DamageEvent { amount: u32 }
+        struct DamageEvent {
+            amount: u32,
+        }
         impl Component for DamageEvent {}
 
         // System that creates ephemeral components
@@ -975,7 +981,9 @@ mod tests {
         impl System for DamageSystem {
             fn run(&self, world: &mut World) {
                 for entity in world.entities().cloned().collect::<Vec<_>>() {
-                    world.add_ephemeral_component(entity, DamageEvent { amount: 25 }).unwrap();
+                    world
+                        .add_ephemeral_component(entity, DamageEvent { amount: 25 })
+                        .unwrap();
                 }
             }
         }
@@ -1014,7 +1022,9 @@ mod tests {
         let mut scheduler = SequentialSystemScheduler::new();
 
         #[derive(Clone, Debug, PartialEq)]
-        struct SystemEvent { phase: String }
+        struct SystemEvent {
+            phase: String,
+        }
         impl Component for SystemEvent {}
 
         // System that creates ephemeral components in run phase
@@ -1022,9 +1032,14 @@ mod tests {
         impl System for SetupSystem {
             fn run(&self, world: &mut World) {
                 for entity in world.entities().cloned().collect::<Vec<_>>() {
-                    world.add_ephemeral_component(entity, SystemEvent {
-                        phase: "run".to_string()
-                    }).unwrap();
+                    world
+                        .add_ephemeral_component(
+                            entity,
+                            SystemEvent {
+                                phase: "run".to_string(),
+                            },
+                        )
+                        .unwrap();
                 }
             }
 
