@@ -283,7 +283,7 @@ fn test_ephemeral_components_large_scale_operations() {
                     entity,
                     DamageEvent {
                         amount: i as u32,
-                        source: format!("source_{}", i),
+                        source: format!("source_{i}"),
                     },
                 )
                 .unwrap();
