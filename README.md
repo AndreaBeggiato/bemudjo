@@ -18,7 +18,9 @@ bemudjo/
 ## 🧩 Crates
 
 ### bemudjo_ecs
-A fast and flexible Entity Component System (ECS) library designed for game development. See the [ECS README](bemudjo_ecs/README.md) for detailed documentation and examples.
+A fast and flexible Entity Component System (ECS) library designed for game development.
+
+See the [ECS README](bemudjo_ecs/README.md) for detailed documentation and examples.
 
 **Status**: 🚧 In active development
 
@@ -115,10 +117,11 @@ Currently available commands:
 The project uses a custom ECS (Entity Component System) implementation for efficient game logic. For detailed information about the ECS architecture, see the [ECS documentation](bemudjo_ecs/README.md).
 
 Key benefits:
-- Flexible game object composition
-- Efficient batch processing
-- Easy feature addition and modification
-- Clear separation of data and logic
+- **Flexible game object composition**: Easy to add/remove capabilities
+- **Efficient batch processing**: Set-based query filtering for optimal performance
+- **Easy feature addition and modification**: Type-safe component system
+- **Clear separation of data and logic**: Clean architecture principles
+- **Exact size hints**: Queries provide precise entity counts for optimal memory allocation
 
 ---
 

@@ -38,7 +38,9 @@ pub struct World {
     entities: HashSet<Entity>,
     soft_deleted_entities: HashSet<Entity>,
     component_storages: HashMap<TypeId, Box<dyn AnyStorage>>,
+    reverse_component_index: HashMap<TypeId, HashSet<Entity>>,
     ephemeral_component_storages: HashMap<TypeId, Box<dyn AnyStorage>>,
+    reverse_ephemeral_component_index: HashMap<TypeId, HashSet<Entity>>,
 }
 
 impl World {
@@ -57,8 +59,32 @@ impl World {
             entities: HashSet::new(),
             soft_deleted_entities: HashSet::new(),
             component_storages: HashMap::new(),
+            reverse_component_index: HashMap::new(),
             ephemeral_component_storages: HashMap::new(),
+            reverse_ephemeral_component_index: HashMap::new(),
         }
+    }
+
+    /// Helper method to get or create the reverse index set for a component type.
+    ///
+    /// This centralizes the common pattern of getting the HashSet for a given TypeId
+    /// in the reverse component index, creating it if it doesn't exist.
+    fn get_or_create_reverse_index<T: crate::Component>(&mut self) -> &mut HashSet<Entity> {
+        let type_id = std::any::TypeId::of::<T>();
+        self.reverse_component_index.entry(type_id).or_default()
+    }
+
+    /// Helper method to get or create the reverse index set for an ephemeral component type.
+    ///
+    /// This centralizes the common pattern of getting the HashSet for a given TypeId
+    /// in the reverse ephemeral component index, creating it if it doesn't exist.
+    fn get_or_create_ephemeral_reverse_index<T: crate::Component>(
+        &mut self,
+    ) -> &mut HashSet<Entity> {
+        let type_id = std::any::TypeId::of::<T>();
+        self.reverse_ephemeral_component_index
+            .entry(type_id)
+            .or_default()
     }
 }
 

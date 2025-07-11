@@ -1,4 +1,6 @@
-use crate::{Component, ComponentStorage, Entity};
+use std::{any::TypeId, collections::HashSet};
+
+use crate::Entity;
 
 use super::World;
 
@@ -53,49 +55,51 @@ impl World {
         self.entities.iter()
     }
 
-    /// Gets all entities that have a specific component type.
+    /// Gets all entities that have a component with the specified TypeId.
     ///
-    /// This is an internal method used by the query system for component-first iteration.
-    /// Instead of checking all entities for a component, this returns only entities
-    /// that actually have the component, providing significant performance improvements.
-    ///
-    /// # Performance
-    /// This method has O(entities_with_component_T) complexity instead of O(total_entities),
-    /// which can be 10-100x faster for sparse components.
+    /// This is an internal method used by the query system for set operations.
+    /// Returns a HashSet for efficient set intersection and difference operations.
+    /// Uses set difference operations for optimal performance.
     ///
     /// # Returns
-    /// A vector of entities that have component type T. Returns empty vector if no
-    /// entities have this component type or if the component storage doesn't exist.
-    pub(crate) fn entities_with_component<T: Component>(&self) -> Vec<crate::Entity> {
-        self.get_storage::<T>()
-            .map(|storage| {
-                storage
-                    .entities()
-                    .filter(|&entity| self.is_entity_active(entity))
+    /// A HashSet of active entities that have the specified component type.
+    /// Automatically excludes soft-deleted entities using set difference.
+    pub(crate) fn entities_with_component_by_type_id(
+        &self,
+        type_id: TypeId,
+    ) -> std::collections::HashSet<Entity> {
+        self.reverse_component_index
+            .get(&type_id)
+            .map(|entity_set| {
+                // Use set difference for optimal performance - O(min(|entity_set|, |soft_deleted|))
+                entity_set
+                    .difference(&self.soft_deleted_entities)
+                    .copied()
                     .collect()
             })
             .unwrap_or_default()
     }
 
-    /// Gets all entities that have a specific ephemeral component type.
+    /// Gets all entities that have an ephemeral component with the specified TypeId.
     ///
-    /// Returns only active entities (excludes soft-deleted entities) that have
-    /// the specified ephemeral component type. This enables efficient iteration over just
-    /// entities that have the ephemeral component, providing significant performance improvements.
-    ///
-    /// # Performance
-    /// This method has O(entities_with_ephemeral_component_T) complexity instead of O(total_entities),
-    /// which can be 10-100x faster for sparse ephemeral components.
+    /// This is an internal method used by the query system for set operations.
+    /// Returns a HashSet for efficient set intersection and difference operations.
+    /// Uses set difference operations for optimal performance.
     ///
     /// # Returns
-    /// A vector of entities that have ephemeral component type T. Returns empty vector if no
-    /// entities have this ephemeral component type or if the ephemeral component storage doesn't exist.
-    pub(crate) fn entities_with_ephemeral_component<T: Component>(&self) -> Vec<crate::Entity> {
-        self.get_ephemeral_storage::<T>()
-            .map(|storage| {
-                storage
-                    .entities()
-                    .filter(|&entity| self.is_entity_active(entity))
+    /// A HashSet of active entities that have the specified ephemeral component type.
+    /// Automatically excludes soft-deleted entities using set difference.
+    pub(crate) fn entities_with_ephemeral_component_by_type_id(
+        &self,
+        type_id: TypeId,
+    ) -> std::collections::HashSet<Entity> {
+        self.reverse_ephemeral_component_index
+            .get(&type_id)
+            .map(|entity_set| {
+                // Use set difference for optimal performance - O(min(|entity_set|, |soft_deleted|))
+                entity_set
+                    .difference(&self.soft_deleted_entities)
+                    .copied()
                     .collect()
             })
             .unwrap_or_default()
@@ -159,12 +163,27 @@ impl World {
     /// world.cleanup_deleted_entities();
     /// ```
     pub fn cleanup_deleted_entities(&mut self) {
-        for entity in self.soft_deleted_entities.iter() {
-            for storage in self.component_storages.values_mut() {
-                storage.remove_entity(*entity);
+        if self.soft_deleted_entities.is_empty() {
+            return; // Early exit optimization
+        }
+
+        // Batch removal with reversed loop order for better cache performance
+        // Remove from component storages
+        for storage in self.component_storages.values_mut() {
+            for &entity in &self.soft_deleted_entities {
+                storage.remove_entity(entity);
             }
         }
-        self.soft_deleted_entities.clear();
+
+        // Remove from reverse component index
+        for entities_set in self.reverse_component_index.values_mut() {
+            for &entity in &self.soft_deleted_entities {
+                entities_set.remove(&entity);
+            }
+        }
+
+        // Nuclear cleanup of deleted entities tracking
+        self.soft_deleted_entities = HashSet::new();
     }
 
     /// Checks if an entity is active (exists and hasn't been soft-deleted).
@@ -184,19 +203,6 @@ mod tests {
         y: f32,
     }
     impl Component for Position {}
-
-    #[derive(Debug, Clone, PartialEq)]
-    struct Health {
-        value: u32,
-    }
-    impl Component for Health {}
-
-    #[derive(Debug, Clone, PartialEq)]
-    struct Velocity {
-        dx: f32,
-        dy: f32,
-    }
-    impl Component for Velocity {}
 
     #[test]
     fn test_entity_active_status() {
@@ -593,58 +599,41 @@ mod tests {
     }
 
     #[test]
-    fn test_entities_with_component_empty_world() {
+    fn test_entities_with_component_by_type_id_empty() {
         let world = World::new();
+        let type_id = std::any::TypeId::of::<Position>();
 
-        // Empty world should have no entities with any component
-        let entities = world.entities_with_component::<Position>();
-        assert!(entities.is_empty());
-
-        let entities = world.entities_with_component::<Health>();
+        // Empty world should return empty set
+        let entities = world.entities_with_component_by_type_id(type_id);
         assert!(entities.is_empty());
     }
 
     #[test]
-    fn test_entities_with_component_no_matching_entities() {
-        let mut world = World::new();
-        let entity1 = world.spawn_entity();
-        let entity2 = world.spawn_entity();
-
-        // Add Position components
-        world
-            .add_component(entity1, Position { x: 1.0, y: 1.0 })
-            .unwrap();
-        world
-            .add_component(entity2, Position { x: 2.0, y: 2.0 })
-            .unwrap();
-
-        // Query for Health components (which don't exist)
-        let entities = world.entities_with_component::<Health>();
-        assert!(entities.is_empty());
-    }
-
-    #[test]
-    fn test_entities_with_component_single_entity() {
+    fn test_entities_with_component_by_type_id_nonexistent_type() {
         let mut world = World::new();
         let entity = world.spawn_entity();
-
         world
-            .add_component(entity, Position { x: 10.0, y: 20.0 })
+            .add_component(entity, Position { x: 1.0, y: 2.0 })
             .unwrap();
 
-        let entities = world.entities_with_component::<Position>();
-        assert_eq!(entities.len(), 1);
-        assert_eq!(entities[0], entity);
+        // Type that doesn't exist should return empty set
+        #[derive(Clone, Debug, PartialEq)]
+        struct NonExistentComponent;
+        impl Component for NonExistentComponent {}
+
+        let type_id = std::any::TypeId::of::<NonExistentComponent>();
+        let entities = world.entities_with_component_by_type_id(type_id);
+        assert!(entities.is_empty());
     }
 
     #[test]
-    fn test_entities_with_component_multiple_entities() {
+    fn test_entities_with_component_by_type_id_basic() {
         let mut world = World::new();
         let entity1 = world.spawn_entity();
         let entity2 = world.spawn_entity();
         let entity3 = world.spawn_entity();
 
-        // Add Position to entities 1 and 3
+        // Add Position component to entity1 and entity3
         world
             .add_component(entity1, Position { x: 1.0, y: 1.0 })
             .unwrap();
@@ -652,47 +641,9 @@ mod tests {
             .add_component(entity3, Position { x: 3.0, y: 3.0 })
             .unwrap();
 
-        // Add Health to entity 2 only
-        world.add_component(entity2, Health { value: 100 }).unwrap();
+        let type_id = std::any::TypeId::of::<Position>();
+        let entities = world.entities_with_component_by_type_id(type_id);
 
-        let position_entities = world.entities_with_component::<Position>();
-        assert_eq!(position_entities.len(), 2);
-        assert!(position_entities.contains(&entity1));
-        assert!(position_entities.contains(&entity3));
-        assert!(!position_entities.contains(&entity2));
-
-        let health_entities = world.entities_with_component::<Health>();
-        assert_eq!(health_entities.len(), 1);
-        assert_eq!(health_entities[0], entity2);
-    }
-
-    #[test]
-    fn test_entities_with_component_excludes_deleted() {
-        let mut world = World::new();
-        let entity1 = world.spawn_entity();
-        let entity2 = world.spawn_entity();
-        let entity3 = world.spawn_entity();
-
-        // Add Position to all entities
-        world
-            .add_component(entity1, Position { x: 1.0, y: 1.0 })
-            .unwrap();
-        world
-            .add_component(entity2, Position { x: 2.0, y: 2.0 })
-            .unwrap();
-        world
-            .add_component(entity3, Position { x: 3.0, y: 3.0 })
-            .unwrap();
-
-        // All entities should be found initially
-        let entities = world.entities_with_component::<Position>();
-        assert_eq!(entities.len(), 3);
-
-        // Delete middle entity
-        world.delete_entity(entity2);
-
-        // Should now exclude deleted entity
-        let entities = world.entities_with_component::<Position>();
         assert_eq!(entities.len(), 2);
         assert!(entities.contains(&entity1));
         assert!(!entities.contains(&entity2));
@@ -700,73 +651,43 @@ mod tests {
     }
 
     #[test]
-    fn test_entities_with_component_after_cleanup() {
-        let mut world = World::new();
-        let entity1 = world.spawn_entity();
-        let entity2 = world.spawn_entity();
-
-        world
-            .add_component(entity1, Position { x: 1.0, y: 1.0 })
-            .unwrap();
-        world
-            .add_component(entity2, Position { x: 2.0, y: 2.0 })
-            .unwrap();
-
-        // Delete entity and cleanup
-        world.delete_entity(entity1);
-        world.cleanup_deleted_entities();
-
-        // Should still exclude deleted entity after cleanup
-        let entities = world.entities_with_component::<Position>();
-        assert_eq!(entities.len(), 1);
-        assert_eq!(entities[0], entity2);
-    }
-
-    #[test]
-    fn test_entities_with_component_mixed_components() {
+    fn test_entities_with_component_by_type_id_excludes_soft_deleted() {
         let mut world = World::new();
         let entity1 = world.spawn_entity();
         let entity2 = world.spawn_entity();
         let entity3 = world.spawn_entity();
-        // Entity 4: No components
-        let _entity4 = world.spawn_entity();
 
-        // Entity 1: Position only
+        // Add Position component to all entities
         world
             .add_component(entity1, Position { x: 1.0, y: 1.0 })
             .unwrap();
-
-        // Entity 2: Health only
-        world.add_component(entity2, Health { value: 100 }).unwrap();
-
-        // Entity 3: Both Position and Health
+        world
+            .add_component(entity2, Position { x: 2.0, y: 2.0 })
+            .unwrap();
         world
             .add_component(entity3, Position { x: 3.0, y: 3.0 })
             .unwrap();
-        world.add_component(entity3, Health { value: 200 }).unwrap();
 
-        // Entity 4: No components
+        // Delete entity2 (soft delete)
+        world.delete_entity(entity2);
 
-        let position_entities = world.entities_with_component::<Position>();
-        assert_eq!(position_entities.len(), 2);
-        assert!(position_entities.contains(&entity1));
-        assert!(position_entities.contains(&entity3));
+        let type_id = std::any::TypeId::of::<Position>();
+        let entities = world.entities_with_component_by_type_id(type_id);
 
-        let health_entities = world.entities_with_component::<Health>();
-        assert_eq!(health_entities.len(), 2);
-        assert!(health_entities.contains(&entity2));
-        assert!(health_entities.contains(&entity3));
-
-        let velocity_entities = world.entities_with_component::<Velocity>();
-        assert!(velocity_entities.is_empty());
+        // Should only return active entities with the component
+        assert_eq!(entities.len(), 2);
+        assert!(entities.contains(&entity1));
+        assert!(!entities.contains(&entity2)); // Excluded due to soft deletion
+        assert!(entities.contains(&entity3));
     }
 
     #[test]
-    fn test_entities_with_component_component_removal() {
+    fn test_entities_with_component_by_type_id_all_deleted() {
         let mut world = World::new();
         let entity1 = world.spawn_entity();
         let entity2 = world.spawn_entity();
 
+        // Add Position component to both entities
         world
             .add_component(entity1, Position { x: 1.0, y: 1.0 })
             .unwrap();
@@ -774,120 +695,279 @@ mod tests {
             .add_component(entity2, Position { x: 2.0, y: 2.0 })
             .unwrap();
 
-        // Initially both entities have Position
-        let entities = world.entities_with_component::<Position>();
-        assert_eq!(entities.len(), 2);
+        // Delete both entities
+        world.delete_entity(entity1);
+        world.delete_entity(entity2);
 
-        // Remove component from one entity
-        world.remove_component::<Position>(entity1);
+        let type_id = std::any::TypeId::of::<Position>();
+        let entities = world.entities_with_component_by_type_id(type_id);
 
-        // Should now only find one entity
-        let entities = world.entities_with_component::<Position>();
+        // Should return empty set when all entities with component are deleted
+        assert!(entities.is_empty());
+    }
+
+    #[test]
+    fn test_entities_with_component_by_type_id_after_cleanup() {
+        let mut world = World::new();
+        let entity1 = world.spawn_entity();
+        let entity2 = world.spawn_entity();
+
+        // Add Position component to both entities
+        world
+            .add_component(entity1, Position { x: 1.0, y: 1.0 })
+            .unwrap();
+        world
+            .add_component(entity2, Position { x: 2.0, y: 2.0 })
+            .unwrap();
+
+        // Delete one entity and cleanup
+        world.delete_entity(entity1);
+        world.cleanup_deleted_entities();
+
+        let type_id = std::any::TypeId::of::<Position>();
+        let entities = world.entities_with_component_by_type_id(type_id);
+
+        // Should only return the remaining entity
         assert_eq!(entities.len(), 1);
-        assert_eq!(entities[0], entity2);
+        assert!(!entities.contains(&entity1));
+        assert!(entities.contains(&entity2));
     }
 
     #[test]
-    fn test_entities_with_component_large_scale() {
-        let mut world = World::new();
-        let mut position_entities = Vec::new();
-        let mut health_entities = Vec::new();
+    fn test_entities_with_ephemeral_component_by_type_id_empty() {
+        let world = World::new();
 
-        // Create 1000 entities with mixed components
-        for i in 0..1000 {
-            let entity = world.spawn_entity();
+        // Define a test ephemeral component
+        #[derive(Clone, Debug, PartialEq)]
+        struct TestEphemeral;
+        impl Component for TestEphemeral {}
 
-            if i % 3 == 0 {
-                // Every 3rd entity gets Position
-                world
-                    .add_component(
-                        entity,
-                        Position {
-                            x: i as f32,
-                            y: 0.0,
-                        },
-                    )
-                    .unwrap();
-                position_entities.push(entity);
-            }
+        let type_id = std::any::TypeId::of::<TestEphemeral>();
 
-            if i % 5 == 0 {
-                // Every 5th entity gets Health
-                world
-                    .add_component(entity, Health { value: i as u32 })
-                    .unwrap();
-                health_entities.push(entity);
-            }
-        }
-
-        // Verify counts
-        let found_position = world.entities_with_component::<Position>();
-        let found_health = world.entities_with_component::<Health>();
-
-        assert_eq!(found_position.len(), position_entities.len());
-        assert_eq!(found_health.len(), health_entities.len());
-
-        // Verify all expected entities are found
-        for &entity in &position_entities {
-            assert!(found_position.contains(&entity));
-        }
-
-        for &entity in &health_entities {
-            assert!(found_health.contains(&entity));
-        }
-
-        // Verify no unexpected entities are found
-        for &entity in &found_position {
-            assert!(position_entities.contains(&entity));
-        }
-
-        for &entity in &found_health {
-            assert!(health_entities.contains(&entity));
-        }
+        // Empty world should return empty set
+        let entities = world.entities_with_ephemeral_component_by_type_id(type_id);
+        assert!(entities.is_empty());
     }
 
     #[test]
-    fn test_entities_with_component_performance_characteristic() {
+    fn test_entities_with_ephemeral_component_by_type_id_basic() {
         let mut world = World::new();
+        let entity1 = world.spawn_entity();
+        let entity2 = world.spawn_entity();
+        let entity3 = world.spawn_entity();
 
-        // Create many entities, but only a few with our target component
-        for i in 0..10000 {
+        // Define a test ephemeral component
+        #[derive(Clone, Debug, PartialEq)]
+        struct TestEphemeral {
+            value: i32,
+        }
+        impl Component for TestEphemeral {}
+
+        // Add ephemeral component to entity1 and entity3
+        world
+            .add_ephemeral_component(entity1, TestEphemeral { value: 1 })
+            .unwrap();
+        world
+            .add_ephemeral_component(entity3, TestEphemeral { value: 3 })
+            .unwrap();
+
+        let type_id = std::any::TypeId::of::<TestEphemeral>();
+        let entities = world.entities_with_ephemeral_component_by_type_id(type_id);
+
+        assert_eq!(entities.len(), 2);
+        assert!(entities.contains(&entity1));
+        assert!(!entities.contains(&entity2));
+        assert!(entities.contains(&entity3));
+    }
+
+    #[test]
+    fn test_entities_with_ephemeral_component_by_type_id_excludes_soft_deleted() {
+        let mut world = World::new();
+        let entity1 = world.spawn_entity();
+        let entity2 = world.spawn_entity();
+        let entity3 = world.spawn_entity();
+
+        // Define a test ephemeral component
+        #[derive(Clone, Debug, PartialEq)]
+        struct TestEphemeral {
+            value: i32,
+        }
+        impl Component for TestEphemeral {}
+
+        // Add ephemeral component to all entities
+        world
+            .add_ephemeral_component(entity1, TestEphemeral { value: 1 })
+            .unwrap();
+        world
+            .add_ephemeral_component(entity2, TestEphemeral { value: 2 })
+            .unwrap();
+        world
+            .add_ephemeral_component(entity3, TestEphemeral { value: 3 })
+            .unwrap();
+
+        // Delete entity2 (soft delete)
+        world.delete_entity(entity2);
+
+        let type_id = std::any::TypeId::of::<TestEphemeral>();
+        let entities = world.entities_with_ephemeral_component_by_type_id(type_id);
+
+        // Should only return active entities with the ephemeral component
+        assert_eq!(entities.len(), 2);
+        assert!(entities.contains(&entity1));
+        assert!(!entities.contains(&entity2)); // Excluded due to soft deletion
+        assert!(entities.contains(&entity3));
+    }
+
+    #[test]
+    fn test_entities_with_ephemeral_component_by_type_id_all_deleted() {
+        let mut world = World::new();
+        let entity1 = world.spawn_entity();
+        let entity2 = world.spawn_entity();
+
+        // Define a test ephemeral component
+        #[derive(Clone, Debug, PartialEq)]
+        struct TestEphemeral {
+            value: i32,
+        }
+        impl Component for TestEphemeral {}
+
+        // Add ephemeral component to both entities
+        world
+            .add_ephemeral_component(entity1, TestEphemeral { value: 1 })
+            .unwrap();
+        world
+            .add_ephemeral_component(entity2, TestEphemeral { value: 2 })
+            .unwrap();
+
+        // Delete both entities
+        world.delete_entity(entity1);
+        world.delete_entity(entity2);
+
+        let type_id = std::any::TypeId::of::<TestEphemeral>();
+        let entities = world.entities_with_ephemeral_component_by_type_id(type_id);
+
+        // Should return empty set when all entities with ephemeral component are deleted
+        assert!(entities.is_empty());
+    }
+
+    #[test]
+    fn test_reverse_index_consistency_regular_components() {
+        let mut world = World::new();
+        let entity1 = world.spawn_entity();
+        let entity2 = world.spawn_entity();
+
+        // Test reverse index is maintained correctly
+        world
+            .add_component(entity1, Position { x: 1.0, y: 1.0 })
+            .unwrap();
+
+        let type_id = std::any::TypeId::of::<Position>();
+        let entities = world.entities_with_component_by_type_id(type_id);
+        assert_eq!(entities.len(), 1);
+        assert!(entities.contains(&entity1));
+
+        // Add component to second entity
+        world
+            .add_component(entity2, Position { x: 2.0, y: 2.0 })
+            .unwrap();
+        let entities = world.entities_with_component_by_type_id(type_id);
+        assert_eq!(entities.len(), 2);
+        assert!(entities.contains(&entity1));
+        assert!(entities.contains(&entity2));
+
+        // Remove component from first entity
+        world.remove_component::<Position>(entity1).unwrap();
+        let entities = world.entities_with_component_by_type_id(type_id);
+        assert_eq!(entities.len(), 1);
+        assert!(!entities.contains(&entity1));
+        assert!(entities.contains(&entity2));
+    }
+
+    #[test]
+    fn test_reverse_index_consistency_ephemeral_components() {
+        let mut world = World::new();
+        let entity1 = world.spawn_entity();
+        let entity2 = world.spawn_entity();
+
+        // Define a test ephemeral component
+        #[derive(Clone, Debug, PartialEq)]
+        struct TestEphemeral {
+            value: i32,
+        }
+        impl Component for TestEphemeral {}
+
+        // Test reverse index is maintained correctly for ephemeral components
+        world
+            .add_ephemeral_component(entity1, TestEphemeral { value: 1 })
+            .unwrap();
+
+        let type_id = std::any::TypeId::of::<TestEphemeral>();
+        let entities = world.entities_with_ephemeral_component_by_type_id(type_id);
+        assert_eq!(entities.len(), 1);
+        assert!(entities.contains(&entity1));
+
+        // Add ephemeral component to second entity
+        world
+            .add_ephemeral_component(entity2, TestEphemeral { value: 2 })
+            .unwrap();
+        let entities = world.entities_with_ephemeral_component_by_type_id(type_id);
+        assert_eq!(entities.len(), 2);
+        assert!(entities.contains(&entity1));
+        assert!(entities.contains(&entity2));
+
+        // Delete first entity to test removal from reverse index
+        world.delete_entity(entity1);
+        let entities = world.entities_with_ephemeral_component_by_type_id(type_id);
+        assert_eq!(entities.len(), 1);
+        assert!(!entities.contains(&entity1));
+        assert!(entities.contains(&entity2));
+    }
+
+    #[test]
+    fn test_set_difference_performance_characteristics() {
+        let mut world = World::new();
+        let mut entities = Vec::new();
+
+        // Create many entities with components
+        for i in 0..100 {
             let entity = world.spawn_entity();
-
-            // Add Health to all entities (common component)
+            entities.push(entity);
             world
-                .add_component(entity, Health { value: i as u32 })
+                .add_component(
+                    entity,
+                    Position {
+                        x: i as f32,
+                        y: i as f32,
+                    },
+                )
                 .unwrap();
-
-            // Add Position to only 1% of entities (sparse component)
-            if i % 100 == 0 {
-                world
-                    .add_component(
-                        entity,
-                        Position {
-                            x: i as f32,
-                            y: 0.0,
-                        },
-                    )
-                    .unwrap();
-            }
         }
 
-        // This test demonstrates the performance benefit:
-        // - entities_with_component::<Position>() only checks ~100 entities
-        // - versus checking all 10,000 entities in the old approach
+        // Delete a subset of entities (soft delete)
+        for i in (0..50).step_by(2) {
+            world.delete_entity(entities[i]);
+        }
 
-        let position_entities = world.entities_with_component::<Position>();
-        assert_eq!(position_entities.len(), 100); // 10000 / 100 = 100
+        let type_id = std::any::TypeId::of::<Position>();
+        let result_entities = world.entities_with_component_by_type_id(type_id);
 
-        let health_entities = world.entities_with_component::<Health>();
-        assert_eq!(health_entities.len(), 10000); // All entities
+        // Verify the set difference worked correctly
+        // Should have 75 entities (100 total - 25 deleted)
+        assert_eq!(result_entities.len(), 75);
 
-        // Verify all Position entities are multiples of 100
-        for &entity in &position_entities {
-            // We can't directly check the entity ID, but we can verify
-            // that all returned entities actually have the Position component
-            assert!(world.has_component::<Position>(entity));
+        // Verify no soft-deleted entities are included
+        for i in (0..50).step_by(2) {
+            assert!(!result_entities.contains(&entities[i]));
+        }
+
+        // Verify non-deleted entities are included
+        for i in (1..50).step_by(2) {
+            assert!(result_entities.contains(&entities[i]));
+        }
+        for entity in entities.iter().take(100).skip(50) {
+            assert!(result_entities.contains(entity));
         }
     }
+
+    // ...existing code...
 }

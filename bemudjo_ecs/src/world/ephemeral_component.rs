@@ -53,6 +53,9 @@ impl World {
             return Err(ComponentError::ComponentNotFound);
         }
 
+        let entities_in_reverse_index = self.get_or_create_ephemeral_reverse_index::<T>();
+        entities_in_reverse_index.insert(entity);
+
         let storage = self.get_ephemeral_storage_mut::<T>();
         // For ephemeral components, we allow replacement (insert_or_update)
         storage.insert_or_update(entity, component);
@@ -129,8 +132,10 @@ impl World {
             return false;
         }
 
-        self.get_ephemeral_storage::<T>()
-            .map(|storage| storage.contains(entity))
+        let type_id = std::any::TypeId::of::<T>();
+        self.reverse_ephemeral_component_index
+            .get(&type_id)
+            .map(|entities| entities.contains(&entity))
             .unwrap_or(false)
     }
 
@@ -164,6 +169,7 @@ impl World {
     pub fn clean_ephemeral_storage(&mut self) {
         // Nuclear cleanup - O(1) operation
         self.ephemeral_component_storages = HashMap::new();
+        self.reverse_ephemeral_component_index = HashMap::new();
     }
 }
 

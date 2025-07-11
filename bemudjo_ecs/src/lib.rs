@@ -8,7 +8,7 @@ pub mod world;
 // Re-export commonly used types
 pub use component::{Component, ComponentError};
 pub use entity::Entity;
-pub use query::{Query, QueryIter};
+pub use query::Query;
 pub use sequential_system_scheduler::SequentialSystemScheduler;
 pub use system::System;
 pub use world::World;

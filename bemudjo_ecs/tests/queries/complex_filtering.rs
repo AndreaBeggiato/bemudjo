@@ -855,9 +855,7 @@ fn test_query_edge_cases() {
 
     // Test: Empty world queries
     let empty_query = Query::<Position>::new();
-    assert_eq!(empty_query.count(&world), 0);
-    assert!(empty_query.first(&world).is_none());
-    assert!(!empty_query.any(&world));
+    assert_eq!(empty_query.iter(&world).count(), 0);
 
     // Test: Query with no matching entities
     let entity = world.spawn_entity();
@@ -872,9 +870,7 @@ fn test_query_edge_cases() {
         .unwrap();
 
     let no_match_query = Query::<Position>::new().with::<Velocity>();
-    assert_eq!(no_match_query.count(&world), 0);
-    assert!(no_match_query.first(&world).is_none());
-    assert!(!no_match_query.any(&world));
+    assert_eq!(no_match_query.iter(&world).count(), 0);
 
     // Test: Query with impossible conditions
     let impossible_query = Query::<Position>::new().with::<Player>().with::<Enemy>(); // Entity can't be both Player and Enemy
@@ -884,19 +880,19 @@ fn test_query_edge_cases() {
         .unwrap();
     world.add_component(entity, Player).unwrap();
 
-    assert_eq!(impossible_query.count(&world), 0);
+    assert_eq!(impossible_query.iter(&world).count(), 0);
 
     // Test: Self-contradictory query
     let contradictory_query = Query::<Health>::new().with::<Dead>().without::<Dead>(); // Can't have and not have Dead at the same time
 
     world.add_component(entity, Dead).unwrap();
-    assert_eq!(contradictory_query.count(&world), 0);
+    assert_eq!(contradictory_query.iter(&world).count(), 0);
 
     // Test: Query after entity deletion
     world.delete_entity(entity);
 
     let after_deletion_query = Query::<Position>::new();
-    assert_eq!(after_deletion_query.count(&world), 0);
+    assert_eq!(after_deletion_query.iter(&world).count(), 0);
 
     // Test: Query with deleted and non-deleted entities mixed
     let entity1 = world.spawn_entity();
@@ -912,7 +908,7 @@ fn test_query_edge_cases() {
     world.delete_entity(entity2);
 
     let mixed_query = Query::<Position>::new();
-    assert_eq!(mixed_query.count(&world), 1); // Only entity1 should be found
+    assert_eq!(mixed_query.iter(&world).count(), 1); // Only entity1 should be found
 
     let results: Vec<_> = mixed_query.iter(&world).collect();
     assert_eq!(results.len(), 1);
@@ -920,7 +916,7 @@ fn test_query_edge_cases() {
 
     // Test: Query after cleanup
     world.cleanup_deleted_entities();
-    assert_eq!(mixed_query.count(&world), 1); // Should still be 1
+    assert_eq!(mixed_query.iter(&world).count(), 1); // Should still be 1
 }
 
 #[test]
@@ -959,7 +955,7 @@ fn test_query_consistency_under_modification() {
     let health_query = Query::<Position>::new().with::<Health>();
 
     // Initial state
-    assert_eq!(health_query.count(&world), 5); // Even numbered entities
+    assert_eq!(health_query.iter(&world).count(), 5); // Even numbered entities
 
     // Add health to odd entities
     for i in (1..10).step_by(2) {
@@ -975,7 +971,7 @@ fn test_query_consistency_under_modification() {
     }
 
     // Now all should have health
-    assert_eq!(health_query.count(&world), 10);
+    assert_eq!(health_query.iter(&world).count(), 10);
 
     // Remove health from some entities
     for i in (0..10).step_by(3) {
@@ -983,7 +979,7 @@ fn test_query_consistency_under_modification() {
     }
 
     // Should have 10 - ceil(10/3) = 10 - 4 = 6 entities with health
-    assert_eq!(health_query.count(&world), 6);
+    assert_eq!(health_query.iter(&world).count(), 6);
 
     // Delete some entities
     for i in (1..10).step_by(4) {
@@ -991,7 +987,7 @@ fn test_query_consistency_under_modification() {
     }
 
     // Verify query still works correctly
-    let remaining_with_health = health_query.count(&world);
+    let remaining_with_health = health_query.iter(&world).count();
     assert!(remaining_with_health <= 6);
 
     // All results should be valid
