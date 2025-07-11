@@ -964,8 +964,8 @@ mod tests {
         for i in (1..50).step_by(2) {
             assert!(result_entities.contains(&entities[i]));
         }
-        for i in 50..100 {
-            assert!(result_entities.contains(&entities[i]));
+        for entity in entities.iter().take(100).skip(50) {
+            assert!(result_entities.contains(entity));
         }
     }
 
