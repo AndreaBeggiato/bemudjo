@@ -13,3 +13,8 @@ rust-version = "1.75"
 
 [workspace.dependencies]
 tokio = { version = "1", features = ["full"] }
+
+# Make tests run with release optimizations by default
+[profile.test]
+inherits = "release"
+debug = true  # Keep debug symbols for better error messages in tests

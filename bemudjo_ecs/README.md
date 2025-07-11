@@ -8,11 +8,12 @@ A fast and flexible Entity Component System (ECS) library built in Rust, designe
 
 - **Type-safe Components**: Leverage Rust's type system for safe component management
 - **Ephemeral Components**: Revolutionary event system replacement using temporary components
-- **Flexible Queries**: Powerful query system with filtering and optimization hints
+- **Efficient Queries**: Powerful query system with set-based filtering for optimal performance
 - **System Scheduling**: Built-in system scheduler for organized game logic execution
 - **Memory Efficient**: Optimized storage with deferred cleanup and batch operations
 - **Game-Optimized**: Designed for real-time game development patterns
 - **Zero-Copy Queries**: Efficient iteration without unnecessary allocations
+- **Exact Size Hints**: Queries provide precise entity counts for optimal memory allocation
 
 ## 📦 Installation
 
@@ -58,7 +59,7 @@ for (entity, position) in query.iter(&world) {
     println!("Entity {:?} at ({}, {})", entity, position.x, position.y);
 }
 
-// Query with filtering
+// Query with filtering - uses efficient set operations
 let moving_entities = Query::<Position>::new()
     .with::<Velocity>(); // Only entities with both Position and Velocity
 
@@ -142,11 +143,6 @@ let positions = Query::<Position>::new();
 let combat_entities = Query::<Health>::new()
     .with::<Position>()        // Must have Position
     .without::<Invulnerable>();    // Must not have Invulnerable component
-
-// Optimized query with probability hints
-let rare_entities = Query::<Collectible>::new()
-    .with::<Rare>()
-    .with_probability(0.01);   // Hint: only 1% of entities match
 
 for (entity, health) in combat_entities.iter(&world) {
     if health.current <= 0 {
@@ -310,12 +306,17 @@ impl SystemDependencies for CollisionSystem {
 ### Performance Optimization
 
 #### Query Optimization
-Use probability hints for better performance on large game worlds:
+The query system uses efficient set operations for filtering:
 
 ```rust
-// If you know only ~5% of entities have a rare component
-let rare_query = Query::<RareComponent>::new()
-    .with_probability(0.05);
+// Queries automatically use optimized set operations
+let complex_query = Query::<Position>::new()
+    .with::<Velocity>()
+    .with::<Health>()
+    .without::<Dead>();
+
+// This uses efficient set intersection and difference operations
+// instead of per-entity filtering
 ```
 
 #### Batch Operations
@@ -413,8 +414,9 @@ The library includes comprehensive tests covering:
 
 - **Entity Creation**: O(1) with atomic counter
 - **Component Addition**: O(1) average case with HashMap storage
-- **Query Iteration**: O(n) where n is the number of matching entities
+- **Query Iteration**: O(size_of_smallest_set) with efficient set operations for filtering
 - **Memory Usage**: Minimal overhead with component-specific storage pools
+- **Size Hints**: Exact entity counts for optimal memory allocation
 
 ### Benchmarks
 The library is optimized for typical game development scenarios:
@@ -422,6 +424,7 @@ The library is optimized for typical game development scenarios:
 - 10,000+ total game objects (players, projectiles, items, effects)
 - Real-time frame processing
 - Efficient batch operations for world updates
+- Set-based query filtering eliminates per-entity condition checking
 
 ## 🤝 Contributing
 

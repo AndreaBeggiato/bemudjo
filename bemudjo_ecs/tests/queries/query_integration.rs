@@ -163,11 +163,10 @@ fn test_living_vs_dead_entities_filtering() {
     assert_eq!(living_results[0].1.value, 100);
 
     // Test counting living entities
-    assert_eq!(living_query.count(&world), 1);
-    assert!(living_query.any(&world));
+    assert_eq!(living_query.iter(&world).count(), 1);
 
     // Test finding first living entity
-    let first_living = living_query.first(&world);
+    let first_living = living_query.iter(&world).next();
     assert!(first_living.is_some());
     assert_eq!(first_living.unwrap().0, entity1);
 }
@@ -392,13 +391,6 @@ fn test_large_scale_query_performance_integration() {
 
     assert_eq!(complex_results.len(), expected_complex_count);
 
-    // Verify size hint optimization works for large collections
-    let iter = position_query.iter(&world);
-    let (lower_hint, upper_hint) = iter.size_hint();
-    assert_eq!(upper_hint, Some(expected_position_count)); // Only entities with Position component
-                                                           // Lower hint should be reasonable approximation (default 10% * 1.5 = 15%)
-    assert!(lower_hint <= position_results.len() * 2); // Within 2x of actual
-
     // Test performance characteristics by measuring multiple iterations
     let start_time = std::time::Instant::now();
     for _ in 0..10 {
@@ -462,17 +454,17 @@ fn test_realistic_game_scenario_integration() {
 
     // Query all entities that can move (have velocity)
     let moving_entities = Query::<Position>::new().with::<Velocity>();
-    let moving_count = moving_entities.count(&world);
+    let moving_count = moving_entities.iter(&world).count();
     assert_eq!(moving_count, 6); // Player + 5 enemies
 
     // Query all entities with health (living entities)
     let living_entities = Query::<Health>::new();
-    let living_count = living_entities.count(&world);
+    let living_count = living_entities.iter(&world).count();
     assert_eq!(living_count, 6); // Player + 5 enemies
 
     // Query moving entities with health (combat-capable entities)
     let combat_entities = Query::<Position>::new().with::<Velocity>().with::<Health>();
-    let combat_count = combat_entities.count(&world);
+    let combat_count = combat_entities.iter(&world).count();
     assert_eq!(combat_count, 6); // Player + 5 enemies
 
     // Simulate killing an enemy
@@ -484,12 +476,12 @@ fn test_realistic_game_scenario_integration() {
         .with::<Velocity>()
         .with::<Health>()
         .without::<Dead>();
-    let living_combat_count = living_combat.count(&world);
+    let living_combat_count = living_combat.iter(&world).count();
     assert_eq!(living_combat_count, 5); // Player + 4 remaining enemies
 
     // Query all positioned entities (should include static environment)
     let all_positioned = Query::<Position>::new();
-    let positioned_count = all_positioned.count(&world);
+    let positioned_count = all_positioned.iter(&world).count();
     assert_eq!(positioned_count, 9); // Player + 5 enemies + 3 static
 
     // Test iterator usage in a realistic scenario

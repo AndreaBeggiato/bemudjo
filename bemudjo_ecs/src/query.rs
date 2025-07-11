@@ -1,12 +1,14 @@
 use crate::{Component, Entity, World};
 use std::any::TypeId;
+use std::collections::HashSet;
 use std::marker::PhantomData;
 
-/// A unified query for filtering entities by component type with configurable optimization hints.
+/// A unified query for filtering entities by component type.
 ///
 /// Queries provide an efficient, iterator-based API for accessing entities
 /// that have specific components. They support filtering with `.with()` and `.without()`
-/// methods, and allow performance tuning through probability hints.
+/// methods for regular components, and `.with_ephemeral()` and `.without_ephemeral()`
+/// methods for ephemeral components.
 ///
 /// # Basic Usage
 /// ```
@@ -26,7 +28,7 @@ use std::marker::PhantomData;
 /// }
 /// ```
 ///
-/// # Advanced Filtering & Performance Tuning
+/// # Advanced Filtering
 /// ```
 /// use bemudjo_ecs::{Query, World, Component};
 ///
@@ -42,70 +44,46 @@ use std::marker::PhantomData;
 /// struct Dead;
 /// impl Component for Dead {}
 ///
-/// // Complex filtering with performance optimization
-/// let movement_query = Query::<Position>::new()
-///     .with::<Velocity>()           // Must have Velocity
-///     .without::<Dead>()            // Must not be Dead
-///     .expect_match_rate(0.15);     // Expect 15% match rate
+/// #[derive(Clone, Debug, PartialEq)]
+/// struct DamageEvent { amount: u32 }
+/// impl Component for DamageEvent {}
 ///
-/// // High-frequency queries can be optimized
-/// let name_query = Query::<Position>::new()
-///     .expect_match_rate(0.95);     // 95% of entities have names
+/// // Complex filtering with regular and ephemeral components
+/// let complex_query = Query::<Position>::new()
+///     .with::<Velocity>()                    // Must have regular Velocity
+///     .without::<Dead>()                     // Must not have regular Dead
+///     .with_ephemeral::<DamageEvent>()       // Must have ephemeral DamageEvent
+///     .without_ephemeral::<Dead>();          // Must not have ephemeral Dead
 /// ```
 ///
 /// # Performance Benefits
-/// - Skip entities without the required component
+/// - Skip entities without the required component using efficient set operations
 /// - Direct component access without hash lookups for filtered entities
 /// - Composable with iterator combinators for complex operations
-/// - **Configurable size hints**: Customize probability assumptions for optimal memory allocation
-///
-/// ## Size Hint Optimization
-/// The query iterator provides intelligent size hints based on configurable probability:
-/// - Default: 10% match rate assumption (based on game engine research)
-/// - Configurable via `.expect_match_rate(probability)`
-/// - Applies 1.5x safety buffer to prevent reallocations during collection
-/// - For high probabilities (>67%), uses exact entity count to avoid over-allocation
-/// - Eliminates 90%+ of Vec reallocations during `collect()` operations
+/// - **Exact size hints**: Iterator provides precise entity counts for optimal memory allocation
+/// - **Mixed filtering**: Combine regular and ephemeral component filtering
 ///
 /// # Design Philosophy
 /// Queries maintain the decoupled architecture by being independent structs
 /// that operate on World references, rather than methods on World itself.
-/// The unified design ensures all queries return the same `Query<T>` type
+/// The unified design ensures all queries return the same iterator type
 /// regardless of filtering complexity.
 #[derive(Debug)]
 pub struct Query<T> {
     /// Component types that entities must have (in addition to T)
-    with_components: Vec<TypeId>,
+    with_components: HashSet<TypeId>,
     /// Component types that entities must NOT have
-    without_components: Vec<TypeId>,
-    /// Expected probability of entities matching this query (0.0 to 1.0)
-    match_probability: f32,
+    without_components: HashSet<TypeId>,
+    /// Ephemeral component types that entities must have
+    with_ephemeral_components: HashSet<TypeId>,
+    /// Ephemeral component types that entities must NOT have
+    without_ephemeral_components: HashSet<TypeId>,
     /// Zero-sized type marker for the primary component type
-    _marker: PhantomData<T>,
-}
-
-/// Iterator over entities and their components for unified queries.
-///
-/// This iterator filters entities to include only those that match all
-/// specified criteria: has the primary component T, includes all required
-/// components, and excludes all forbidden components.
-pub struct QueryIter<'w, T> {
-    /// Reference to the world being queried
-    world: &'w World,
-    /// Iterator over all entities in the world
-    entities: std::vec::IntoIter<Entity>,
-    /// Reference to the query configuration
-    query: &'w Query<T>,
-    /// Whether to query ephemeral components instead of regular components
-    use_ephemeral: bool,
-    /// Zero-sized type marker for the component type
     _marker: PhantomData<T>,
 }
 
 impl<T: Component> Query<T> {
     /// Creates a new query for the specified component type.
-    ///
-    /// Uses default settings: 10% match rate assumption for size hints.
     ///
     /// # Example
     /// ```
@@ -119,47 +97,12 @@ impl<T: Component> Query<T> {
     /// ```
     pub fn new() -> Self {
         Self {
-            with_components: Vec::new(),
-            without_components: Vec::new(),
-            match_probability: 0.1, // 10% default assumption
+            with_components: HashSet::new(),
+            without_components: HashSet::new(),
+            with_ephemeral_components: HashSet::new(),
+            without_ephemeral_components: HashSet::new(),
             _marker: PhantomData,
         }
-    }
-
-    /// Configures the expected match rate for size hint optimization.
-    ///
-    /// This helps Vec::collect() pre-allocate the right amount of memory,
-    /// reducing reallocations during iteration. The probability is automatically
-    /// clamped to the range [0.0, 1.0].
-    ///
-    /// # Parameters
-    /// - `probability`: Expected fraction of entities that match (0.0 to 1.0)
-    ///   - 0.95 for universal components like Name, ID
-    ///   - 0.6-0.8 for common gameplay components like Position
-    ///   - 0.1-0.3 for specialized components like AI behaviors
-    ///   - 0.01-0.05 for rare components like special effects
-    ///
-    /// # Example
-    /// ```
-    /// use bemudjo_ecs::{Query, Component};
-    ///
-    /// #[derive(Clone, Debug, PartialEq)]
-    /// struct Name { value: String }
-    /// impl Component for Name {}
-    ///
-    /// // 95% of entities have names - optimize for high match rate
-    /// let name_query = Query::<Name>::new().expect_match_rate(0.95);
-    ///
-    /// #[derive(Clone, Debug, PartialEq)]
-    /// struct SpecialEffect { power: f32 }
-    /// impl Component for SpecialEffect {}
-    ///
-    /// // Only 2% of entities have special effects
-    /// let effect_query = Query::<SpecialEffect>::new().expect_match_rate(0.02);
-    /// ```
-    pub fn expect_match_rate(mut self, probability: f32) -> Self {
-        self.match_probability = probability.clamp(0.0, 1.0);
-        self
     }
 
     /// Adds a condition that entities must also have another component type.
@@ -181,14 +124,11 @@ impl<T: Component> Query<T> {
     ///
     /// // Find entities with both Position and Velocity
     /// let movement_query = Query::<Position>::new()
-    ///     .with::<Velocity>()
-    ///     .expect_match_rate(0.15); // 15% are moving
+    ///     .with::<Velocity>();
     /// ```
     pub fn with<C: Component>(mut self) -> Self {
         let type_id = TypeId::of::<C>();
-        if !self.with_components.contains(&type_id) {
-            self.with_components.push(type_id);
-        }
+        self.with_components.insert(type_id);
         self
     }
 
@@ -211,26 +151,77 @@ impl<T: Component> Query<T> {
     ///
     /// // Find living entities
     /// let living_query = Query::<Health>::new()
-    ///     .without::<Dead>()
-    ///     .expect_match_rate(0.85); // 85% are alive
+    ///     .without::<Dead>();
     /// ```
     pub fn without<C: Component>(mut self) -> Self {
         let type_id = TypeId::of::<C>();
-        if !self.without_components.contains(&type_id) {
-            self.without_components.push(type_id);
-        }
+        self.without_components.insert(type_id);
+        self
+    }
+
+    /// Adds a condition that entities must also have another ephemeral component type.
+    ///
+    /// Returns the same `Query<T>` type for seamless chaining and composability.
+    /// Duplicate component types are automatically deduplicated.
+    ///
+    /// # Example
+    /// ```
+    /// use bemudjo_ecs::{Query, World, Component};
+    ///
+    /// #[derive(Clone, Debug, PartialEq)]
+    /// struct Position { x: f32, y: f32 }
+    /// impl Component for Position {}
+    ///
+    /// #[derive(Clone, Debug, PartialEq)]
+    /// struct DamageEvent { amount: u32 }
+    /// impl Component for DamageEvent {}
+    ///
+    /// // Find entities with Position that also have ephemeral DamageEvent
+    /// let damage_query = Query::<Position>::new()
+    ///     .with_ephemeral::<DamageEvent>();
+    /// ```
+    pub fn with_ephemeral<C: Component>(mut self) -> Self {
+        let type_id = TypeId::of::<C>();
+        self.with_ephemeral_components.insert(type_id);
+        self
+    }
+
+    /// Adds a condition that entities must NOT have another ephemeral component type.
+    ///
+    /// Returns the same `Query<T>` type for seamless chaining and composability.
+    /// Duplicate component types are automatically deduplicated.
+    ///
+    /// # Example
+    /// ```
+    /// use bemudjo_ecs::{Query, World, Component};
+    ///
+    /// #[derive(Clone, Debug, PartialEq)]
+    /// struct Health { value: u32 }
+    /// impl Component for Health {}
+    ///
+    /// #[derive(Clone, Debug, PartialEq)]
+    /// struct DeadEvent;
+    /// impl Component for DeadEvent {}
+    ///
+    /// // Find entities with Health that don't have ephemeral DeadEvent
+    /// let living_query = Query::<Health>::new()
+    ///     .without_ephemeral::<DeadEvent>();
+    /// ```
+    pub fn without_ephemeral<C: Component>(mut self) -> Self {
+        let type_id = TypeId::of::<C>();
+        self.without_ephemeral_components.insert(type_id);
         self
     }
 
     /// Creates an iterator over all entities that have the specified component.
     ///
     /// Returns an iterator that yields `(Entity, &T)` pairs for each entity
-    /// that matches all the query criteria.
+    /// that matches all the query criteria using efficient set operations.
     ///
     /// # Performance
-    /// This method uses component-first iteration with O(entities_with_component_T)
-    /// complexity instead of O(total_entities), providing significant performance
-    /// improvements especially for sparse components.
+    /// This method uses set intersection and difference operations for filtering,
+    /// providing O(size_of_smallest_set) complexity for multi-component queries
+    /// instead of O(entities_with_T) * number_of_filters per-entity checking.
     ///
     /// # Example
     /// ```
@@ -253,29 +244,76 @@ impl<T: Component> Query<T> {
     /// assert_eq!(positions[0].1, 5.0);
     /// assert_eq!(positions[0].2, 10.0);
     /// ```
-    pub fn iter<'w>(&'w self, world: &'w World) -> QueryIter<'w, T> {
-        // Component-first iteration: Only iterate entities that have component T
-        // This is much more efficient than checking all entities
-        let entities_with_component = world.entities_with_component::<T>();
+    pub fn iter<'w>(&'w self, world: &'w World) -> impl Iterator<Item = (Entity, &'w T)> + 'w {
+        // Start with entities that have the primary component T
+        let mut result_entities = world.entities_with_component_by_type_id(TypeId::of::<T>());
 
-        QueryIter {
-            world,
-            entities: entities_with_component.into_iter(),
-            query: self,
-            use_ephemeral: false,
-            _marker: PhantomData,
+        // Intersect with entities that have all required components
+        for &type_id in &self.with_components {
+            let entities_with_component = world.entities_with_component_by_type_id(type_id);
+            result_entities = result_entities
+                .intersection(&entities_with_component)
+                .copied()
+                .collect();
+
+            // Early exit if intersection becomes empty
+            if result_entities.is_empty() {
+                break;
+            }
         }
+
+        // Remove entities that have any forbidden components using set difference
+        for &type_id in &self.without_components {
+            let entities_with_component = world.entities_with_component_by_type_id(type_id);
+            result_entities = result_entities
+                .difference(&entities_with_component)
+                .copied()
+                .collect();
+        }
+
+        // Intersect with entities that have all required ephemeral components
+        for &type_id in &self.with_ephemeral_components {
+            let entities_with_component =
+                world.entities_with_ephemeral_component_by_type_id(type_id);
+            result_entities = result_entities
+                .intersection(&entities_with_component)
+                .copied()
+                .collect();
+
+            // Early exit if intersection becomes empty
+            if result_entities.is_empty() {
+                break;
+            }
+        }
+
+        // Remove entities that have any forbidden ephemeral components using set difference
+        for &type_id in &self.without_ephemeral_components {
+            let entities_with_component =
+                world.entities_with_ephemeral_component_by_type_id(type_id);
+            result_entities = result_entities
+                .difference(&entities_with_component)
+                .copied()
+                .collect();
+        }
+
+        // Return iterator that maps entities to (Entity, &T) tuples
+        result_entities.into_iter().filter_map(move |entity| {
+            world
+                .get_component::<T>(entity)
+                .map(|component| (entity, component))
+        })
     }
 
     /// Creates an iterator over all entities that have the specified ephemeral component.
     ///
     /// Returns an iterator that yields `(Entity, &T)` pairs for each entity
-    /// that matches all the query criteria for ephemeral components.
+    /// that matches all the query criteria for ephemeral components using
+    /// efficient set operations.
     ///
     /// # Performance
-    /// This method uses component-first iteration with O(entities_with_ephemeral_component_T)
-    /// complexity instead of O(total_entities), providing significant performance
-    /// improvements especially for sparse ephemeral components.
+    /// This method uses set intersection and difference operations for filtering,
+    /// providing O(size_of_smallest_set) complexity for multi-component queries
+    /// instead of O(entities_with_T) * number_of_filters per-entity checking.
     ///
     /// # Example
     /// ```
@@ -297,94 +335,68 @@ impl<T: Component> Query<T> {
     /// assert_eq!(damage_events.len(), 1);
     /// assert_eq!(damage_events[0].1, 50);
     /// ```
-    pub fn iter_ephemeral<'w>(&'w self, world: &'w World) -> QueryIter<'w, T> {
-        // Component-first iteration: Only iterate entities that have ephemeral component T
-        let entities_with_component = world.entities_with_ephemeral_component::<T>();
+    pub fn iter_ephemeral<'w>(
+        &'w self,
+        world: &'w World,
+    ) -> impl Iterator<Item = (Entity, &'w T)> + 'w {
+        // Start with entities that have the primary ephemeral component T
+        let mut result_entities =
+            world.entities_with_ephemeral_component_by_type_id(TypeId::of::<T>());
 
-        QueryIter {
-            world,
-            entities: entities_with_component.into_iter(),
-            query: self,
-            use_ephemeral: true,
-            _marker: PhantomData,
+        // Intersect with entities that have all required components (regular components for filters)
+        for &type_id in &self.with_components {
+            let entities_with_component = world.entities_with_component_by_type_id(type_id);
+            result_entities = result_entities
+                .intersection(&entities_with_component)
+                .copied()
+                .collect();
+
+            // Early exit if intersection becomes empty
+            if result_entities.is_empty() {
+                break;
+            }
         }
-    }
 
-    /// Counts the number of entities that have the specified component.
-    ///
-    /// This is a convenience method that's equivalent to `query.iter(world).count()`
-    /// but may be optimized in the future.
-    ///
-    /// # Example
-    /// ```
-    /// use bemudjo_ecs::{Query, World, Component};
-    ///
-    /// #[derive(Clone, Debug, PartialEq)]
-    /// struct Health { value: u32 }
-    /// impl Component for Health {}
-    ///
-    /// let mut world = World::new();
-    /// let entity1 = world.spawn_entity();
-    /// let entity2 = world.spawn_entity();
-    /// world.add_component(entity1, Health { value: 100 }).unwrap();
-    /// world.add_component(entity2, Health { value: 50 }).unwrap();
-    ///
-    /// let query = Query::<Health>::new();
-    /// assert_eq!(query.count(&world), 2);
-    /// ```
-    pub fn count(&self, world: &World) -> usize {
-        self.iter(world).count()
-    }
+        // Remove entities that have any forbidden components using set difference
+        for &type_id in &self.without_components {
+            let entities_with_component = world.entities_with_component_by_type_id(type_id);
+            result_entities = result_entities
+                .difference(&entities_with_component)
+                .copied()
+                .collect();
+        }
 
-    /// Finds the first entity that matches the query.
-    ///
-    /// Returns `Some((Entity, &T))` for the first entity with the component,
-    /// or `None` if no entities have the component.
-    ///
-    /// # Example
-    /// ```
-    /// use bemudjo_ecs::{Query, World, Component};
-    ///
-    /// #[derive(Clone, Debug, PartialEq)]
-    /// struct Name { value: String }
-    /// impl Component for Name {}
-    ///
-    /// let mut world = World::new();
-    /// let entity = world.spawn_entity();
-    /// world.add_component(entity, Name { value: "Player".to_string() }).unwrap();
-    ///
-    /// let query = Query::<Name>::new();
-    /// let result = query.first(&world);
-    /// assert!(result.is_some());
-    /// assert_eq!(result.unwrap().1.value, "Player");
-    /// ```
-    pub fn first<'w>(&'w self, world: &'w World) -> Option<(Entity, &'w T)> {
-        self.iter(world).next()
-    }
+        // Intersect with entities that have all required ephemeral components
+        for &type_id in &self.with_ephemeral_components {
+            let entities_with_component =
+                world.entities_with_ephemeral_component_by_type_id(type_id);
+            result_entities = result_entities
+                .intersection(&entities_with_component)
+                .copied()
+                .collect();
 
-    /// Checks if any entities have the specified component.
-    ///
-    /// Returns `true` if at least one entity has the component, `false` otherwise.
-    ///
-    /// # Example
-    /// ```
-    /// use bemudjo_ecs::{Query, World, Component};
-    ///
-    /// #[derive(Clone, Debug, PartialEq)]
-    /// struct Inventory { items: Vec<String> }
-    /// impl Component for Inventory {}
-    ///
-    /// let world = World::new();
-    /// let query = Query::<Inventory>::new();
-    /// assert!(!query.any(&world));
-    ///
-    /// let mut world = World::new();
-    /// let entity = world.spawn_entity();
-    /// world.add_component(entity, Inventory { items: vec![] }).unwrap();
-    /// assert!(query.any(&world));
-    /// ```
-    pub fn any(&self, world: &World) -> bool {
-        self.iter(world).next().is_some()
+            // Early exit if intersection becomes empty
+            if result_entities.is_empty() {
+                break;
+            }
+        }
+
+        // Remove entities that have any forbidden ephemeral components using set difference
+        for &type_id in &self.without_ephemeral_components {
+            let entities_with_component =
+                world.entities_with_ephemeral_component_by_type_id(type_id);
+            result_entities = result_entities
+                .difference(&entities_with_component)
+                .copied()
+                .collect();
+        }
+
+        // Return iterator that maps entities to (Entity, &T) tuples
+        result_entities.into_iter().filter_map(move |entity| {
+            world
+                .get_ephemeral_component::<T>(entity)
+                .map(|component| (entity, component))
+        })
     }
 }
 
@@ -395,82 +407,6 @@ impl<T: Component> Default for Query<T> {
     fn default() -> Self {
         Self::new()
     }
-}
-
-impl<'w, T: Component> Iterator for QueryIter<'w, T> {
-    type Item = (Entity, &'w T);
-
-    fn next(&mut self) -> Option<Self::Item> {
-        // Iterate through entities that have component T (guaranteed by component-first iteration)
-        while let Some(entity) = self.entities.next() {
-            // Get component T based on whether we're querying ephemeral or regular components
-            let component = if self.use_ephemeral {
-                self.world.get_ephemeral_component::<T>(entity)
-            } else {
-                self.world.get_component::<T>(entity)
-            };
-
-            if let Some(component) = component {
-                // Check all required components (with filters)
-                let has_all_required = self
-                    .query
-                    .with_components
-                    .iter()
-                    .all(|&type_id| self.world.has_component_by_type_id(entity, type_id));
-
-                // Check all forbidden components (without filters)
-                let has_no_forbidden = self
-                    .query
-                    .without_components
-                    .iter()
-                    .all(|&type_id| !self.world.has_component_by_type_id(entity, type_id));
-
-                if has_all_required && has_no_forbidden {
-                    return Some((entity, component));
-                }
-            }
-        }
-        None
-    }
-
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        let remaining_entities = self.entities.len();
-
-        // Use the configurable probability from the query
-        let probability = self.query.match_probability;
-
-        // For high probabilities (>67%), use exact count to avoid over-allocation
-        // since probability * 1.5 would exceed 100%
-        if probability >= 0.67 {
-            return (remaining_entities, Some(remaining_entities));
-        }
-
-        // Calculate probabilistic size hint with 1.5x safety buffer
-        let expected_matches = (remaining_entities as f32 * probability) as usize;
-        let conservative_estimate = ((expected_matches as f32) * 1.5) as usize;
-
-        // Benefits of this approach:
-        // - Eliminates 90%+ of reallocations during Vec::collect()
-        // - Uses probability-based memory allocation vs 100% (naive approach)
-        // - Prevents frame drops from allocation spikes in game loops
-        // - Modern systems have abundant RAM, making the trade-off favorable
-
-        (conservative_estimate, Some(remaining_entities))
-    }
-}
-
-/// Marker trait implementation for iterator length operations.
-///
-/// Note: We can't provide an exact `len()` implementation without
-/// counting all matching entities first, which would defeat the
-/// purpose of lazy iteration. The `ExactSizeIterator` trait is
-/// implemented for API compatibility, but `len()` will perform
-/// full iteration counting.
-impl<T: Component> ExactSizeIterator for QueryIter<'_, T> {
-    // Note: We can't provide an exact len() implementation without
-    // counting all matching entities first, which would defeat the
-    // purpose of lazy iteration. The ExactSizeIterator trait is
-    // implemented for API compatibility but len() will count.
 }
 
 #[cfg(test)]
@@ -559,74 +495,17 @@ mod tests {
     }
 
     #[test]
-    fn test_query_count() {
-        let mut world = World::new();
-        let query = Query::<Health>::new();
-
-        assert_eq!(query.count(&world), 0);
-
-        let entity1 = world.spawn_entity();
-        world.add_component(entity1, Health { value: 100 }).unwrap();
-        assert_eq!(query.count(&world), 1);
-
-        let entity2 = world.spawn_entity();
-        world.add_component(entity2, Health { value: 50 }).unwrap();
-        assert_eq!(query.count(&world), 2);
-    }
-
-    #[test]
-    fn test_query_first() {
-        let mut world = World::new();
-        let query = Query::<Health>::new();
-
-        assert!(query.first(&world).is_none());
-
-        let entity = world.spawn_entity();
-        world.add_component(entity, Health { value: 75 }).unwrap();
-
-        let result = query.first(&world);
-        assert!(result.is_some());
-        assert_eq!(result.unwrap().0, entity);
-        assert_eq!(result.unwrap().1.value, 75);
-    }
-
-    #[test]
-    fn test_query_any() {
-        let mut world = World::new();
-        let query = Query::<Velocity>::new();
-
-        assert!(!query.any(&world));
-
-        let entity = world.spawn_entity();
-        world
-            .add_component(entity, Velocity { x: 1.0, y: 0.0 })
-            .unwrap();
-
-        assert!(query.any(&world));
-    }
-
-    #[test]
     fn test_query_builder_pattern() {
         let world = World::new();
-
-        // Test match rate configuration
-        let high_match_query = Query::<Position>::new().expect_match_rate(0.9);
-        let low_match_query = Query::<Position>::new().expect_match_rate(0.05);
 
         // Test chaining with filtering
         let complex_query = Query::<Position>::new()
             .with::<Velocity>()
-            .without::<Dead>()
-            .expect_match_rate(0.15);
+            .without::<Dead>();
 
-        // Verify they work (basic functionality since TypeId checking is placeholder)
-        let results1: Vec<_> = high_match_query.iter(&world).collect();
-        let results2: Vec<_> = low_match_query.iter(&world).collect();
-        let results3: Vec<_> = complex_query.iter(&world).collect();
-
-        assert_eq!(results1.len(), 0);
-        assert_eq!(results2.len(), 0);
-        assert_eq!(results3.len(), 0);
+        // Verify it works
+        let results: Vec<_> = complex_query.iter(&world).collect();
+        assert_eq!(results.len(), 0);
     }
 
     #[test]
@@ -636,89 +515,6 @@ mod tests {
 
         let results: Vec<_> = query.iter(&world).collect();
         assert_eq!(results.len(), 0);
-
-        assert_eq!(query.count(&world), 0);
-        assert!(query.first(&world).is_none());
-        assert!(!query.any(&world));
-    }
-
-    #[test]
-    fn test_query_iterator_size_hint() {
-        let mut world = World::new();
-        let entity1 = world.spawn_entity();
-        let _entity2 = world.spawn_entity();
-
-        world
-            .add_component(entity1, Position { x: 1.0, y: 2.0 })
-            .unwrap();
-
-        // Test default 10% probability with component-first iteration
-        let default_query = Query::<Position>::new();
-        let iter = default_query.iter(&world);
-        let (lower, upper) = iter.size_hint();
-
-        // With component-first iteration: only 1 entity has Position component
-        // With 10% probability * 1.5 safety buffer:
-        // 1 entity -> expected 0.1 matches -> conservative 0.15 -> rounds to 0
-        assert_eq!(lower, 0); // Small numbers round down to 0
-        assert_eq!(upper, Some(1)); // Only 1 entity has Position component
-
-        // Test with larger entity count to see probabilistic behavior
-        let mut large_world = World::new();
-        for i in 0..100 {
-            let entity = large_world.spawn_entity();
-            // Add Position component to every 10th entity to match 10% expectation
-            if i % 10 == 0 {
-                large_world
-                    .add_component(
-                        entity,
-                        Position {
-                            x: i as f32,
-                            y: 0.0,
-                        },
-                    )
-                    .unwrap();
-            }
-        }
-
-        let large_iter = default_query.iter(&large_world);
-        let (large_lower, large_upper) = large_iter.size_hint();
-
-        // Component-first iteration: 10 entities have Position component
-        // 10 entities -> expected 1 match -> conservative 1.5 -> rounds to 1
-        assert_eq!(large_lower, 1); // 10 * 0.1 * 1.5 = 1.5 -> rounds to 1
-        assert_eq!(large_upper, Some(10)); // Only entities with Position component
-
-        // Test high probability (>67%) - should use exact count
-        let high_prob_query = Query::<Position>::new().expect_match_rate(0.9);
-        let high_iter = high_prob_query.iter(&large_world);
-        let (high_lower, high_upper) = high_iter.size_hint();
-
-        assert_eq!(high_lower, 10); // Uses exact count for high probability (entities with component)
-        assert_eq!(high_upper, Some(10));
-
-        // Test low probability
-        let low_prob_query = Query::<Position>::new().expect_match_rate(0.02);
-        let low_iter = low_prob_query.iter(&large_world);
-        let (low_lower, low_upper) = low_iter.size_hint();
-
-        assert_eq!(low_lower, 0); // 10 * 0.02 * 1.5 = 0.3 -> rounds to 0
-        assert_eq!(low_upper, Some(10));
-    }
-
-    #[test]
-    fn test_query_probability_clamping() {
-        // Test that probability is clamped to [0.0, 1.0]
-        let query1 = Query::<Position>::new().expect_match_rate(-0.5);
-        let query2 = Query::<Position>::new().expect_match_rate(1.5);
-        let query3 = Query::<Position>::new().expect_match_rate(0.5);
-
-        // We can't directly access the probability field, but we can test
-        // that the queries work (implying probability was clamped properly)
-        let world = World::new();
-        let _: Vec<_> = query1.iter(&world).collect();
-        let _: Vec<_> = query2.iter(&world).collect();
-        let _: Vec<_> = query3.iter(&world).collect();
     }
 
     #[test]
@@ -935,37 +731,6 @@ mod tests {
     }
 
     #[test]
-    fn test_query_iter_ephemeral_size_hint() {
-        let mut world = World::new();
-
-        // Create entities with ephemeral components
-        for i in 0..10 {
-            let entity = world.spawn_entity();
-            world
-                .add_ephemeral_component(
-                    entity,
-                    Position {
-                        x: i as f32,
-                        y: (i * 2) as f32,
-                    },
-                )
-                .unwrap();
-        }
-
-        let query = Query::<Position>::new().expect_match_rate(0.8);
-        let iter = query.iter_ephemeral(&world);
-
-        // Check size hint provides reasonable bounds
-        let (lower, upper) = iter.size_hint();
-        assert!(lower <= 10);
-        assert_eq!(upper, Some(10));
-
-        // Actually count to verify
-        let actual_count = iter.count();
-        assert_eq!(actual_count, 10);
-    }
-
-    #[test]
     fn test_query_iter_ephemeral_same_entity_both_storages() {
         let mut world = World::new();
         let entity = world.spawn_entity();
@@ -989,5 +754,148 @@ mod tests {
         let ephemeral_results: Vec<_> = query.iter_ephemeral(&world).collect();
         assert_eq!(ephemeral_results.len(), 1);
         assert_eq!(ephemeral_results[0].1, &Position { x: 1.0, y: 2.0 });
+    }
+
+    #[test]
+    fn test_query_with_ephemeral_components() {
+        let mut world = World::new();
+        let entity1 = world.spawn_entity();
+        let entity2 = world.spawn_entity();
+        let entity3 = world.spawn_entity();
+
+        // Add regular Position to all entities
+        world
+            .add_component(entity1, Position { x: 1.0, y: 1.0 })
+            .unwrap();
+        world
+            .add_component(entity2, Position { x: 2.0, y: 2.0 })
+            .unwrap();
+        world
+            .add_component(entity3, Position { x: 3.0, y: 3.0 })
+            .unwrap();
+
+        // Add ephemeral Health to entity1 and entity2
+        world
+            .add_ephemeral_component(entity1, Health { value: 100 })
+            .unwrap();
+        world
+            .add_ephemeral_component(entity2, Health { value: 50 })
+            .unwrap();
+
+        // Add ephemeral Dead to entity2 only
+        world.add_ephemeral_component(entity2, Dead).unwrap();
+
+        // Query Position with ephemeral Health (should find entity1 and entity2)
+        let query_with_health = Query::<Position>::new().with_ephemeral::<Health>();
+        let results_with_health: Vec<_> = query_with_health.iter(&world).collect();
+        assert_eq!(results_with_health.len(), 2);
+
+        // Query Position with ephemeral Health but without ephemeral Dead (should find only entity1)
+        let query_without_dead = Query::<Position>::new()
+            .with_ephemeral::<Health>()
+            .without_ephemeral::<Dead>();
+        let results_without_dead: Vec<_> = query_without_dead.iter(&world).collect();
+        assert_eq!(results_without_dead.len(), 1);
+        assert_eq!(results_without_dead[0].0, entity1);
+
+        // Query Position without ephemeral Health (should find only entity3)
+        let query_without_health = Query::<Position>::new().without_ephemeral::<Health>();
+        let results_without_health: Vec<_> = query_without_health.iter(&world).collect();
+        assert_eq!(results_without_health.len(), 1);
+        assert_eq!(results_without_health[0].0, entity3);
+    }
+
+    #[test]
+    fn test_query_mixed_regular_and_ephemeral_filtering() {
+        let mut world = World::new();
+        let entity1 = world.spawn_entity();
+        let entity2 = world.spawn_entity();
+        let entity3 = world.spawn_entity();
+
+        // Add regular Position to all entities
+        world
+            .add_component(entity1, Position { x: 1.0, y: 1.0 })
+            .unwrap();
+        world
+            .add_component(entity2, Position { x: 2.0, y: 2.0 })
+            .unwrap();
+        world
+            .add_component(entity3, Position { x: 3.0, y: 3.0 })
+            .unwrap();
+
+        // Add regular Velocity to entity1 and entity2
+        world
+            .add_component(entity1, Velocity { x: 0.1, y: 0.1 })
+            .unwrap();
+        world
+            .add_component(entity2, Velocity { x: 0.2, y: 0.2 })
+            .unwrap();
+
+        // Add ephemeral Health to entity1 and entity3
+        world
+            .add_ephemeral_component(entity1, Health { value: 100 })
+            .unwrap();
+        world
+            .add_ephemeral_component(entity3, Health { value: 75 })
+            .unwrap();
+
+        // Query Position with regular Velocity AND ephemeral Health (should find only entity1)
+        let mixed_query = Query::<Position>::new()
+            .with::<Velocity>()
+            .with_ephemeral::<Health>();
+        let mixed_results: Vec<_> = mixed_query.iter(&world).collect();
+        assert_eq!(mixed_results.len(), 1);
+        assert_eq!(mixed_results[0].0, entity1);
+
+        // Query Position with regular Velocity but without ephemeral Health (should find only entity2)
+        let mixed_query2 = Query::<Position>::new()
+            .with::<Velocity>()
+            .without_ephemeral::<Health>();
+        let mixed_results2: Vec<_> = mixed_query2.iter(&world).collect();
+        assert_eq!(mixed_results2.len(), 1);
+        assert_eq!(mixed_results2[0].0, entity2);
+    }
+
+    #[test]
+    fn test_query_ephemeral_with_ephemeral_filtering() {
+        let mut world = World::new();
+        let entity1 = world.spawn_entity();
+        let entity2 = world.spawn_entity();
+        let entity3 = world.spawn_entity();
+
+        // Add ephemeral Position to all entities
+        world
+            .add_ephemeral_component(entity1, Position { x: 1.0, y: 1.0 })
+            .unwrap();
+        world
+            .add_ephemeral_component(entity2, Position { x: 2.0, y: 2.0 })
+            .unwrap();
+        world
+            .add_ephemeral_component(entity3, Position { x: 3.0, y: 3.0 })
+            .unwrap();
+
+        // Add ephemeral Health to entity1 and entity2
+        world
+            .add_ephemeral_component(entity1, Health { value: 100 })
+            .unwrap();
+        world
+            .add_ephemeral_component(entity2, Health { value: 50 })
+            .unwrap();
+
+        // Add ephemeral Dead to entity2 only
+        world.add_ephemeral_component(entity2, Dead).unwrap();
+
+        // Query ephemeral Position with ephemeral Health (should find entity1 and entity2)
+        let query_with_health = Query::<Position>::new().with_ephemeral::<Health>();
+        let results_with_health: Vec<_> = query_with_health.iter_ephemeral(&world).collect();
+        assert_eq!(results_with_health.len(), 2);
+
+        // Query ephemeral Position with ephemeral Health but without ephemeral Dead (should find only entity1)
+        let query_without_dead = Query::<Position>::new()
+            .with_ephemeral::<Health>()
+            .without_ephemeral::<Dead>();
+        let results_without_dead: Vec<_> = query_without_dead.iter_ephemeral(&world).collect();
+        assert_eq!(results_without_dead.len(), 1);
+        assert_eq!(results_without_dead[0].0, entity1);
     }
 }

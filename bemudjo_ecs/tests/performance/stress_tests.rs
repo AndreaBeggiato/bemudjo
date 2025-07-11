@@ -611,7 +611,6 @@ fn test_component_churn_stress() {
 }
 
 #[test]
-#[ignore]
 fn test_concurrent_query_stress() {
     let mut world = World::new();
 
