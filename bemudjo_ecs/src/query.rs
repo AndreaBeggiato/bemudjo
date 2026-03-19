@@ -857,6 +857,34 @@ mod tests {
     }
 
     #[test]
+    fn test_no_double_borrow_corruption() {
+        let mut world = World::new();
+
+        for i in 0..5u32 {
+            let entity = world.spawn_entity();
+            world
+                .add_component(entity, Position { x: i as f32, y: 0.0 })
+                .unwrap();
+            if i % 2 == 0 {
+                world.add_component(entity, Health { value: 60 }).unwrap();
+            }
+        }
+
+        let query = Query::<Position>::new();
+        let filtered: Vec<_> = query
+            .iter(&world)
+            .filter(|(entity, _)| {
+                world
+                    .get_component::<Health>(*entity)
+                    .map_or(false, |h| h.value > 50)
+            })
+            .collect();
+
+        assert_eq!(query.iter(&world).count(), 5);
+        assert_eq!(filtered.len(), 3);
+    }
+
+    #[test]
     fn test_query_ephemeral_with_ephemeral_filtering() {
         let mut world = World::new();
         let entity1 = world.spawn_entity();

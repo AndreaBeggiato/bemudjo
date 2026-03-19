@@ -1,3 +1,4 @@
+pub mod bundle;
 pub mod component;
 pub mod entity;
 pub mod query;
@@ -6,6 +7,7 @@ pub mod system;
 pub mod world;
 
 // Re-export commonly used types
+pub use bundle::Bundle;
 pub use component::{Component, ComponentError};
 pub use entity::Entity;
 pub use query::Query;

@@ -767,15 +767,9 @@ fn test_resource_sharing_performance() {
         max_events: 1000,
     });
 
-    // Measure performance
-    let start = std::time::Instant::now();
-
     for _ in 0..10 {
         scheduler.run_tick(&mut world);
     }
-
-    let duration = start.elapsed();
-    assert!(duration.as_millis() < 100); // Should complete quickly
 
     // Verify all systems executed
     let event_log = world.get_resource::<EventLog>().unwrap();

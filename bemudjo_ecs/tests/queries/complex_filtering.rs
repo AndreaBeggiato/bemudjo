@@ -704,7 +704,6 @@ fn test_query_with_optional_components() {
 }
 
 #[test]
-#[ignore] // TODO: Fix iterator invalidation bug - double borrow of world during filtering
 fn test_dynamic_filtering_with_component_values() {
     let mut world = World::new();
 
@@ -809,7 +808,7 @@ fn test_dynamic_filtering_with_component_values() {
                 .unwrap_or(false)
         })
         .collect();
-    assert_eq!(fragile_weapons.len(), 3); // i = 4, 6, 8
+    assert_eq!(fragile_weapons.len(), 2); // i = 6, 8 (i=4 has durability exactly 80, not < 80)
 
     // Test: Players with high stats (level >= 2 AND health >= 20)
     let elite_players: Vec<_> = base_query
