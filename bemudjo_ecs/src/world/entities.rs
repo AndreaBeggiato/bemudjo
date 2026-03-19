@@ -30,6 +30,34 @@ impl World {
         entity
     }
 
+    /// Spawns a new entity and immediately inserts a bundle of components.
+    ///
+    /// # Example
+    /// ```
+    /// use bemudjo_ecs::{Bundle, Component, Entity, World};
+    ///
+    /// #[derive(Clone, Debug, PartialEq)]
+    /// struct Health { value: u32 }
+    /// impl Component for Health {}
+    ///
+    /// struct MobBundle { health: Health }
+    ///
+    /// impl Bundle for MobBundle {
+    ///     fn insert_into(self, world: &mut World, entity: Entity) {
+    ///         world.add_component(entity, self.health).unwrap();
+    ///     }
+    /// }
+    ///
+    /// let mut world = World::new();
+    /// let mob = world.spawn_with(MobBundle { health: Health { value: 50 } });
+    /// assert!(world.has_component::<Health>(mob));
+    /// ```
+    pub fn spawn_with(&mut self, bundle: impl crate::Bundle) -> Entity {
+        let entity = self.spawn_entity();
+        bundle.insert_into(self, entity);
+        entity
+    }
+
     /// Returns an iterator over all active entities (excludes deleted entities).
     ///
     /// The iterator yields references to `Entity` objects that are currently active

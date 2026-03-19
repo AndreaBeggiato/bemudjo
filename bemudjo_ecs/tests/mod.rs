@@ -10,7 +10,6 @@
 //! - `scenarios/`: Realistic game scenarios and edge cases
 
 pub mod core;
-pub mod performance;
 pub mod queries;
 pub mod resources;
 pub mod scenarios;

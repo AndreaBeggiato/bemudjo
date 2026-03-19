@@ -11,6 +11,7 @@ A fast and flexible Entity Component System (ECS) library built in Rust, designe
 - **Efficient Queries**: Powerful query system with set-based filtering for optimal performance
 - **System Scheduling**: Built-in system scheduler for organized game logic execution
 - **Memory Efficient**: Optimized storage with deferred cleanup and batch operations
+- **Component Bundles**: Group components into reusable archetypes with `spawn_with`
 - **Game-Optimized**: Designed for real-time game development patterns
 - **Zero-Copy Queries**: Efficient iteration without unnecessary allocations
 - **Exact Size Hints**: Queries provide precise entity counts for optimal memory allocation
@@ -77,6 +78,26 @@ Entities are unique identifiers for game objects. They're lightweight handles th
 let player = world.spawn_entity();
 let projectile = world.spawn_entity();
 let pickup = world.spawn_entity();
+```
+
+### Bundles
+Bundles group components into reusable archetypes, so you can spawn complex entities in one call:
+
+```rust
+use bemudjo_ecs::{Bundle, Component, Entity, World};
+
+struct PlayerBundle {
+    name: String,
+}
+
+impl Bundle for PlayerBundle {
+    fn insert_into(self, world: &mut World, entity: Entity) {
+        world.add_component(entity, Name { value: self.name }).unwrap();
+        world.add_component(entity, Health { current: 100, max: 100 }).unwrap();
+    }
+}
+
+let player = world.spawn_with(PlayerBundle { name: "Gandalf".into() });
 ```
 
 ### Components

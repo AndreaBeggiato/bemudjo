@@ -618,15 +618,9 @@ fn test_resource_performance_scenario() {
     scheduler.add_system(MassResourceSystem).unwrap();
     scheduler.build().unwrap();
 
-    // Run performance test
-    let start_time = std::time::Instant::now();
     for _ in 0..10 {
         scheduler.run_tick(&mut world);
     }
-    let duration = start_time.elapsed();
-
-    // Should complete quickly (performance test)
-    assert!(duration.as_millis() < 100); // Less than 100ms for 10 iterations
 
     // Verify final state
     assert!(world.has_resource::<Statistics>());

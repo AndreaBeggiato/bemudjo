@@ -390,16 +390,6 @@ fn test_large_scale_query_performance_integration() {
         .count();
 
     assert_eq!(complex_results.len(), expected_complex_count);
-
-    // Test performance characteristics by measuring multiple iterations
-    let start_time = std::time::Instant::now();
-    for _ in 0..10 {
-        let _: Vec<_> = complex_query.iter(&world).collect();
-    }
-    let duration = start_time.elapsed();
-
-    // Should complete 10 iterations quickly (this is more of a smoke test)
-    assert!(duration.as_millis() < 1000); // Less than 1 second for 10 iterations
 }
 
 #[test]

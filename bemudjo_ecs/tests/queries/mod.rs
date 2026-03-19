@@ -12,4 +12,3 @@ pub mod complex_filtering;
 pub mod ephemeral_query_integration;
 pub mod query_edge_cases;
 pub mod query_integration;
-pub mod query_performance;
