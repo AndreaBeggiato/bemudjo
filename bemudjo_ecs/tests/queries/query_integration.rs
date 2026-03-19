@@ -390,7 +390,6 @@ fn test_large_scale_query_performance_integration() {
         .count();
 
     assert_eq!(complex_results.len(), expected_complex_count);
-
 }
 
 #[test]

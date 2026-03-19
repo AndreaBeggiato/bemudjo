@@ -863,7 +863,13 @@ mod tests {
         for i in 0..5u32 {
             let entity = world.spawn_entity();
             world
-                .add_component(entity, Position { x: i as f32, y: 0.0 })
+                .add_component(
+                    entity,
+                    Position {
+                        x: i as f32,
+                        y: 0.0,
+                    },
+                )
                 .unwrap();
             if i % 2 == 0 {
                 world.add_component(entity, Health { value: 60 }).unwrap();
