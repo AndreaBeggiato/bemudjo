@@ -882,7 +882,7 @@ mod tests {
             .filter(|(entity, _)| {
                 world
                     .get_component::<Health>(*entity)
-                    .map_or(false, |h| h.value > 50)
+                    .is_some_and(|h| h.value > 50)
             })
             .collect();
 
